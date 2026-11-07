@@ -1,24 +1,74 @@
-# Heat-Seeker
+#  Heat-Seeker
 
-## How to set it up?
+A Python-based application that combines a **Heat Risk Checker** and a **Fire Spread Simulator** to analyze weather conditions and simulate how wildfires spread.
 
-1. Open up Git and write: ```git clone https://github.com/ydwagz/Heat-Seeker.git```
-2. Get Virtual environment: ``` py -m venv env```
-3. Activate the env: ``` env\Scripts\activate```
-4. install librarie: ```pip install requests```
-5. install librarie: ```pip install requests python-dotenv```
-6. install librarie: ```pip freeze > requirements.txt```
-7. install librarie: ```pip install -r requirements.txt```
-8. install librarie: ```pip install flet```
+---
 
-Appearance:
+##  Appearance
+
 <img width="372" height="831" alt="image" src="https://github.com/user-attachments/assets/d0df0792-1e80-45d9-aab7-3551d45ada19" />
 
-Original Codes(without the App):
+---
 
-Heat Risk Checker:
+##  How to set it up?
 
+**1. Clone the repository**
+
+Open up Git and write:
+
+```bash
+git clone https://github.com/ydwagz/Heat-Seeker.git
 ```
+
+**2. Get Virtual environment**
+
+```bash
+py -m venv env
+```
+
+**3. Activate the env**
+
+```bash
+env\Scripts\activate
+```
+
+**4. Install librarie**
+
+```bash
+pip install requests
+```
+
+**5. Install librarie**
+
+```bash
+pip install requests python-dotenv
+```
+
+**6. Install librarie**
+
+```bash
+pip freeze > requirements.txt
+```
+
+**7. Install librarie**
+
+```bash
+pip install -r requirements.txt
+```
+
+**8. Install librarie**
+
+```bash
+pip install flet
+```
+
+---
+
+#  Original Codes (without the App)
+
+##  Heat Risk Checker
+
+```python
 import requests
 
 def heat_risk_checker(T: float, RH: float):
@@ -71,15 +121,21 @@ idx = heat_risk_checker(current["temperature_2m"], current["relative_humidity_2m
 print(idx)
 ```
 
-# How does it work?
+### How does it work?
+
 it gets national Georgian Temperature and Humidity (from API ) , then it calculates the Heat Index with a complicated formula.
-(code was made by Luca Godadze)
-API used: "https://api.open-meteo.com/v1/forecast?latitude=41.72&longitude=44.79&current=temperature_2m,relative_humidity_2m"
 
+**(code was made by Luca Godadze)**
 
-Fire Spread Simulator:
+**API used:**
 
-```
+https://api.open-meteo.com/v1/forecast?latitude=41.72&longitude=44.79&current=temperature_2m,relative_humidity_2m
+
+---
+
+##  Fire Spread Simulator
+
+```python
 import random
 import time
 
@@ -179,19 +235,20 @@ print_grid(grid)
 print(f"{Left_Trees} Trees Survived")
 ```
 
-# how does it work?
+### how does it work?
+
 it makes a 10x10 grid (using 🌲), in that 10x10 grid there's a fire in the middle, that fire checks for its neighbors (trees around the fire),
 then a neighbor tree has a % chance to catch on fire depending on the Winds direction. after the first round (neighbor trees catch fire) the original fire (🔥) goes out and becomes: "⚫"
 then the program checks how many trees there are left and prints them out.
-(made by Luca Godadze)
 
+**(made by Luca Godadze)**
+
+---
 
 # AI part
 
 The Applications Design was made by AI. (Claude Code Opus 5.5)
+
 Image icon was made by ChatGPT-6 open AI
-<img width="473" height="401" alt="image" src="https://github.com/user-attachments/assets/be480192-ea4c-4484-9deb-6fbc81c43647" />
 
-
-
-
+<img width="473" height="401" alt="image" src="https://github.com/user-attachments/assets/be480192-ea4c-4484-9eb6-6fbc81c43647Ma

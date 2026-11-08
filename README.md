@@ -267,6 +267,8 @@ then the program checks how many trees there are left and prints them out.
 
 **(made by Luca Godadze)**
 
+---
+
 ## Nasa FIRMS
 
 ```python
@@ -374,6 +376,16 @@ for testing purposes I gave the code a False alarm and it gave me a google maps 
 <img width="751" height="673" alt="image" src="https://github.com/user-attachments/assets/04109baf-28f9-487a-85ff-57d6bc970120" />
 <img width="414" height="425" alt="image" src="https://github.com/user-attachments/assets/b78581a0-3b3e-4fd8-8dca-c5776a331511" />
 
+
+**API Used:**
+
+Nominatim: https://nominatim.openstreetmap.org/reverse
+
+
+https://www.google.com/maps
+
+
+NASA FIRMS: https://firms.modaps.eosdis.nasa.gov/api/area/csv
 
 ---
 

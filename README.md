@@ -382,7 +382,7 @@ for testing purposes I gave the code a False alarm and it gave me a google maps 
 Nominatim: https://nominatim.openstreetmap.org/reverse
 
 
-https://www.google.com/maps
+Google Maps: https://www.google.com/maps
 
 
 NASA FIRMS: https://firms.modaps.eosdis.nasa.gov/api/area/csv

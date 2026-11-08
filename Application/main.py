@@ -15,10 +15,8 @@ from fire_sim import (
 )
 from heat import fetch_current_weather, heat_risk_checker
 
-# Windows needs an .ico; it's built from Images/Sun_Cloud.png
 APP_ICON = Path(__file__).parent / "Images" / "icon.ico"
 
-# iPhone 14 / 15 logical size
 WINDOW_WIDTH = 390
 WINDOW_HEIGHT = 844
 PAGE_PADDING = 20

@@ -57,11 +57,6 @@ def heat_risk_checker(temp_c: float, rh: float) -> dict:
 
 
 def fetch_current_weather(lat: float = TBILISI[0], lon: float = TBILISI[1]) -> dict:
-    """Current weather from Open-Meteo.
-
-    Keys: time, temperature_2m (°C), relative_humidity_2m (%), wind_speed_10m (km/h),
-    wind_direction_10m (degrees the wind blows FROM), cloud_cover (%), is_day (0/1).
-    """
     response = requests.get(
         WEATHER_URL,
         params={

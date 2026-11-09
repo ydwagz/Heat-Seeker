@@ -5,6 +5,7 @@ truststore.inject_into_ssl()
 
 TBILISI = (41.72, 44.79)
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
+GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 
 
 def heat_index(temp_c: float, rh: float) -> tuple[float, float]:
@@ -66,11 +67,37 @@ def fetch_current_weather(lat: float = TBILISI[0], lon: float = TBILISI[1]) -> d
                 "temperature_2m,relative_humidity_2m,"
                 "wind_speed_10m,wind_direction_10m,cloud_cover,is_day"
             ),
+            "timezone": "auto",  # "time" comes back in the place's local time
         },
         timeout=10,
     )
     response.raise_for_status()
     return response.json()["current"]
+
+
+def search_places(name: str, count: int = 8) -> list[dict]:
+    """Places in Georgia matching a name, best match first: name, region, latitude, longitude."""
+    response = requests.get(
+        GEOCODING_URL,
+        params={"name": name, "count": count, "language": "en", "format": "json", "countryCode": "GE"},
+        timeout=10,
+    )
+    response.raise_for_status()
+    places, seen = [], set()
+    for place in response.json().get("results", []):
+        key = (place["name"], place.get("admin1", ""))
+        if key in seen:  # the database often lists the same town twice
+            continue
+        seen.add(key)
+        places.append(
+            {
+                "name": place["name"],
+                "region": place.get("admin1", ""),
+                "latitude": place["latitude"],
+                "longitude": place["longitude"],
+            }
+        )
+    return places
 
 
 if __name__ == "__main__":

@@ -75,11 +75,14 @@ def fetch_current_weather(lat: float = TBILISI[0], lon: float = TBILISI[1]) -> d
     return response.json()["current"]
 
 
-def search_places(name: str, count: int = 8) -> list[dict]:
-    """Places in Georgia matching a name, best match first: name, region, latitude, longitude."""
+def search_places(name: str, count: int = 8, language: str = "en") -> list[dict]:
+    """Places in Georgia matching a name, best match first: name, region, latitude, longitude.
+
+    `language` ("en" or "ka") picks the language of the returned names.
+    """
     response = requests.get(
         GEOCODING_URL,
-        params={"name": name, "count": count, "language": "en", "format": "json", "countryCode": "GE"},
+        params={"name": name, "count": count, "language": language, "format": "json", "countryCode": "GE"},
         timeout=10,
     )
     response.raise_for_status()

@@ -1,0 +1,287 @@
+"""Every piece of interface text, in English ("en") and Georgian ("ka").
+
+Templates use str.format fields like {city}. Text between ** ** is shown bold
+(see `main.rich`). Names that come from online services (search results, fire
+locations) are data and aren't translated here.
+"""
+
+LANGUAGES = {"en": "English", "ka": "ქართული"}
+
+STRINGS = {
+    "en": {
+        # Navigation and chrome
+        "nav.home": "Home",
+        "nav.fire_spread": "Fire Spread",
+        "nav.fires": "Fires Happening",
+        "settings": "Settings",
+        "settings.language": "Language",
+        "settings.unit": "Temperature unit",
+        "settings.celsius": "Celsius (°C)",
+        "settings.fahrenheit": "Fahrenheit (°F)",
+        "settings.sources": "Data sources",
+        "settings.sources_text": "Weather: Open-Meteo. Fires: NASA FIRMS (VIIRS NOAA-21). Places and map: © OpenStreetMap contributors.",
+        # Weather panel
+        "weather.loading": "Getting live weather…",
+        "weather.updating": "Updating…",
+        "weather.feels": "Feels like {temp}° · **{level}**",
+        "weather.humidity": "Humidity",
+        "weather.wind": "Wind",
+        "weather.clouds": "Clouds",
+        "weather.wind_value": "{speed} km/h {dir}",
+        "weather.updated": "Updated {time} local time",
+        "weather.error": "Live weather is unavailable. Check your connection, then pick a location to retry.",
+        "weather.change_location": "Change location",
+        "scale.safe": "Safe",
+        "scale.extreme": "Extreme danger",
+        # Heat risk levels
+        "risk.Safe": "Safe",
+        "risk.Caution": "Caution",
+        "risk.Extreme Caution": "Extreme caution",
+        "risk.Danger": "Danger",
+        "risk.Extreme Danger": "Extreme danger",
+        # Home shortcuts
+        "home.danger_loading": "Working out today's fire danger…",
+        "home.danger_loading_in": "Working out fire danger in {city}…",
+        "home.danger_hint": "See how a fire would spread",
+        "home.danger_today": "Fire danger today: {level}",
+        "home.danger_unavailable": "Fire danger unavailable right now",
+        "home.danger_retry": "Check your connection, then pick a location to retry.",
+        "home.fires_loading": "Checking for fires in Georgia…",
+        "home.fires_unavailable": "Fire data unavailable right now",
+        "home.fires_none": "No fires in Georgia now",
+        "home.fires_one": "1 fire in Georgia",
+        "home.fires_many": "{count} fires in Georgia",
+        "home.fires_detail": "Satellite data from the last {days} days.",
+        "home.check_location": "Check any location",
+        # Fire danger levels and advice
+        "danger.Low": "Low",
+        "danger.Moderate": "Moderate",
+        "danger.High": "High",
+        "danger.Extreme": "Extreme",
+        "advice.Low": "Take normal precautions.",
+        "advice.Moderate": "Be careful with campfires and barbecues.",
+        "advice.High": "Avoid open fires outdoors.",
+        "advice.Extreme": "Don't light any fires outdoors.",
+        # Heat calculator
+        "calc.title": "Check any temperature",
+        "calc.intro": "See how hot it feels and how risky that is.",
+        "calc.temperature": "Temperature",
+        "calc.humidity": "Humidity",
+        "calc.check": "Check",
+        "calc.invalid": "Enter a number for temperature and humidity.",
+        # Fire risk screen
+        "risk.title": "Fire Risk",
+        "risk.intro": "What would happen to a forest in {city}'s weather right now? Updates by itself.",
+        "risk.working": "Working out fire danger…",
+        "risk.simulating": "Simulating {runs} forests for each case.",
+        "risk.danger": "Fire danger: {level}",
+        "risk.unavailable": "Fire danger unavailable",
+        "risk.no_weather": "Live weather is unavailable, so there's no prediction yet.",
+        "risk.night": "night, so glass can't focus sunlight",
+        "risk.overcast": "overcast, so glass can't focus sunlight",
+        "risk.sunshine": "{percent}% sunshine",
+        "risk.conditions": "{temp}°{unit}, {humidity}% humidity, wind {speed} km/h pushing fire {toward}, {light}. Tap a case to see a typical forest.",
+        "risk.summary": "On average **{burned} of {total}** trees burn. A fire starts in **{chance}% of forests**; the worst one lost {worst} trees.",
+        "toward.north": "north",
+        "toward.east": "east",
+        "toward.south": "south",
+        "toward.west": "west",
+        "case.natural": "Heat alone",
+        "case.glass": "Glass",
+        "case.flammable": "Flammable litter",
+        "case.natural.about": "Trees catching fire from heat and dry air, with nothing else in the forest.",
+        "case.glass.about": "Broken glass can focus sunlight onto dry leaves. It only starts fires in daylight.",
+        "case.flammable.about": "Fuel cans and rubbish catch fire far more easily than trees, then spread it.",
+        # Fire simulation
+        "sim.title": "Watch a fire spread",
+        "sim.intro": "Pick where the wind blows, then start a fire in the middle of the forest.",
+        "sim.start": "Start fire",
+        "sim.burning": "Burning…",
+        "sim.survived": "{alive} of {total} trees survived.",
+        "wind.north": "N",
+        "wind.east": "E",
+        "wind.south": "S",
+        "wind.west": "W",
+        # Fires happening screen
+        "fires.title": "Fires Happening",
+        "fires.intro": "Fires spotted by NASA satellites in Georgia over the last {days} days.",
+        "fires.check_again": "Check again",
+        "fires.getting": "Getting satellite data from NASA…",
+        "fires.nasa_error": "Couldn't reach NASA FIRMS. Check your connection, then refresh.",
+        "fires.checking": "Checking where {count} satellite detections are…",
+        "fires.lookup_error": "Couldn't look up fire locations. Refresh to try again.",
+        "fires.so_far": "{count} found so far…",
+        "fires.found_one": "1 fire detected in Georgia in the last {days} days.",
+        "fires.found_many": "{count} fires detected in Georgia in the last {days} days.",
+        "fires.none": "No fires detected in Georgia in the last {days} days.",
+        "fires.power": "Fire power {power} MW",
+        "fires.seen": ", seen {count} times",
+        "fires.open_map": "Open in Google Maps",
+        "fires.credits": "Fire data: NASA FIRMS. Map: © OpenStreetMap contributors.",
+        "when.today": "Today",
+        "when.yesterday": "Yesterday",
+        # Location sheet
+        "location.title": "Check any location",
+        "location.intro": "See the weather and fire risk anywhere in Georgia. Press Enter to search.",
+        "location.search": "Search for a town or village",
+        "location.searching": "Searching…",
+        "location.error": "Search is unavailable. Check your connection and try again.",
+        "location.none": "No place in Georgia called \"{query}\". Check the spelling or try a nearby town.",
+        "location.georgia": "Georgia",
+    },
+    "ka": {
+        # Navigation and chrome
+        "nav.home": "მთავარი",
+        "nav.fire_spread": "ხანძრის რისკი",
+        "nav.fires": "ხანძრები",
+        "settings": "პარამეტრები",
+        "settings.language": "ენა",
+        "settings.unit": "ტემპერატურის ერთეული",
+        "settings.celsius": "ცელსიუსი (°C)",
+        "settings.fahrenheit": "ფარენჰაიტი (°F)",
+        "settings.sources": "მონაცემთა წყაროები",
+        "settings.sources_text": "ამინდი: Open-Meteo. ხანძრები: NASA FIRMS (VIIRS NOAA-21). ადგილები და რუკა: © OpenStreetMap-ის მონაწილეები.",
+        # Weather panel
+        "weather.loading": "ამინდის მონაცემები იტვირთება…",
+        "weather.updating": "ახლდება…",
+        "weather.feels": "იგრძნობა როგორც {temp}° · **{level}**",
+        "weather.humidity": "ტენიანობა",
+        "weather.wind": "ქარი",
+        "weather.clouds": "ღრუბლიანობა",
+        "weather.wind_value": "{speed} კმ/სთ {dir}",
+        "weather.updated": "განახლდა {time}-ზე, ადგილობრივი დროით",
+        "weather.error": "ამინდის მონაცემები მიუწვდომელია. შეამოწმეთ ინტერნეტი და ხელახლა აირჩიეთ ადგილი.",
+        "weather.change_location": "ადგილის შეცვლა",
+        "scale.safe": "უსაფრთხო",
+        "scale.extreme": "უკიდურესი საფრთხე",
+        # Heat risk levels
+        "risk.Safe": "უსაფრთხო",
+        "risk.Caution": "სიფრთხილე",
+        "risk.Extreme Caution": "დიდი სიფრთხილე",
+        "risk.Danger": "საშიში",
+        "risk.Extreme Danger": "უკიდურესად საშიში",
+        # Home shortcuts
+        "home.danger_loading": "დღევანდელი ხანძრის საფრთხე ითვლება…",
+        "home.danger_loading_in": "ხანძრის საფრთხე ითვლება: {city}…",
+        "home.danger_hint": "ნახეთ, როგორ გავრცელდებოდა ხანძარი",
+        "home.danger_today": "ხანძრის საფრთხე დღეს: {level}",
+        "home.danger_unavailable": "ხანძრის საფრთხე ახლა მიუწვდომელია",
+        "home.danger_retry": "შეამოწმეთ ინტერნეტი და ხელახლა აირჩიეთ ადგილი.",
+        "home.fires_loading": "საქართველოში ხანძრები მოწმდება…",
+        "home.fires_unavailable": "ხანძრის მონაცემები ახლა მიუწვდომელია",
+        "home.fires_none": "საქართველოში ხანძარი არ არის",
+        "home.fires_one": "საქართველოში 1 ხანძარია",
+        "home.fires_many": "საქართველოში {count} ხანძარია",
+        "home.fires_detail": "თანამგზავრის მონაცემები ბოლო {days} დღისთვის.",
+        "home.check_location": "ნებისმიერი ადგილის შემოწმება",
+        # Fire danger levels and advice
+        "danger.Low": "დაბალი",
+        "danger.Moderate": "ზომიერი",
+        "danger.High": "მაღალი",
+        "danger.Extreme": "უკიდურესი",
+        "advice.Low": "დაიცავით ჩვეულებრივი სიფრთხილე.",
+        "advice.Moderate": "ფრთხილად იყავით კოცონთან და მწვადთან.",
+        "advice.High": "მოერიდეთ ღია ცეცხლს გარეთ.",
+        "advice.Extreme": "გარეთ ცეცხლს ნუ დაანთებთ.",
+        # Heat calculator
+        "calc.title": "ნებისმიერი ტემპერატურის შემოწმება",
+        "calc.intro": "ნახეთ, როგორ იგრძნობა სიცხე და რამდენად სარისკოა.",
+        "calc.temperature": "ტემპერატურა",
+        "calc.humidity": "ტენიანობა",
+        "calc.check": "შემოწმება",
+        "calc.invalid": "შეიყვანეთ რიცხვები ტემპერატურისა და ტენიანობისთვის.",
+        # Fire risk screen
+        "risk.title": "ხანძრის რისკი",
+        "risk.intro": "რა მოუვიდოდა ტყეს {city_of} ახლანდელ ამინდში? ახლდება ავტომატურად.",
+        "risk.working": "ხანძრის საფრთხე ითვლება…",
+        "risk.simulating": "თითოეული შემთხვევისთვის {runs} ტყის სიმულაცია მიმდინარეობს.",
+        "risk.danger": "ხანძრის საფრთხე: {level}",
+        "risk.unavailable": "ხანძრის საფრთხე მიუწვდომელია",
+        "risk.no_weather": "ამინდის მონაცემები მიუწვდომელია, ამიტომ პროგნოზი ჯერ არ არის.",
+        "risk.night": "ღამეა, ამიტომ მინა მზის სხივებს ვერ მოაგროვებს",
+        "risk.overcast": "მოღრუბლულია, ამიტომ მინა მზის სხივებს ვერ მოაგროვებს",
+        "risk.sunshine": "მზიანობა {percent}%",
+        "risk.conditions": "{temp}°{unit}, ტენიანობა {humidity}%, ქარი {speed} კმ/სთ ცეცხლს {toward} უბიძგებს, {light}. აირჩიეთ შემთხვევა ტიპური ტყის სანახავად.",
+        "risk.summary": "საშუალოდ იწვის **{total}-დან {burned}** ხე. ხანძარი იწყება **ტყეების {chance}%-ში**; ყველაზე უარეს შემთხვევაში {worst} ხე დაიწვა.",
+        "toward.north": "ჩრდილოეთისკენ",
+        "toward.east": "აღმოსავლეთისკენ",
+        "toward.south": "სამხრეთისკენ",
+        "toward.west": "დასავლეთისკენ",
+        "case.natural": "მხოლოდ სიცხე",
+        "case.glass": "მინა",
+        "case.flammable": "აალებადი ნაგავი",
+        "case.natural.about": "ხეები ცეცხლს იკიდებს სიცხისა და მშრალი ჰაერისგან, ტყეში სხვა არაფერია.",
+        "case.glass.about": "გატეხილ მინას შეუძლია მზის სხივები მშრალ ფოთლებზე მოაგროვოს. ხანძარს მხოლოდ დღისით იწვევს.",
+        "case.flammable.about": "საწვავის ბიდონები და ნაგავი ხეებზე ბევრად ადვილად აალდება და ცეცხლს ავრცელებს.",
+        # Fire simulation
+        "sim.title": "უყურეთ ხანძრის გავრცელებას",
+        "sim.intro": "აირჩიეთ ქარის მიმართულება და დაანთეთ ცეცხლი ტყის შუაგულში.",
+        "sim.start": "ცეცხლის დანთება",
+        "sim.burning": "იწვის…",
+        "sim.survived": "{total}-დან {alive} ხე გადარჩა.",
+        "wind.north": "ჩრ",
+        "wind.east": "აღმ",
+        "wind.south": "სამხ",
+        "wind.west": "დას",
+        # Fires happening screen
+        "fires.title": "მიმდინარე ხანძრები",
+        "fires.intro": "NASA-ს თანამგზავრების მიერ საქართველოში ბოლო {days} დღეში აღმოჩენილი ხანძრები.",
+        "fires.check_again": "ხელახლა შემოწმება",
+        "fires.getting": "NASA-დან თანამგზავრის მონაცემები იტვირთება…",
+        "fires.nasa_error": "NASA FIRMS-თან დაკავშირება ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და განაახლეთ.",
+        "fires.checking": "მოწმდება {count} თანამგზავრული აღმოჩენის მდებარეობა…",
+        "fires.lookup_error": "ხანძრების მდებარეობა ვერ დადგინდა. სცადეთ განახლება.",
+        "fires.so_far": "ჯერჯერობით ნაპოვნია {count}…",
+        "fires.found_one": "საქართველოში ბოლო {days} დღეში აღმოჩენილია 1 ხანძარი.",
+        "fires.found_many": "საქართველოში ბოლო {days} დღეში აღმოჩენილია {count} ხანძარი.",
+        "fires.none": "საქართველოში ბოლო {days} დღეში ხანძარი არ აღმოჩენილა.",
+        "fires.power": "ხანძრის სიმძლავრე {power} მგვტ",
+        "fires.seen": ", დაფიქსირდა {count}-ჯერ",
+        "fires.open_map": "Google Maps-ში გახსნა",
+        "fires.credits": "ხანძრის მონაცემები: NASA FIRMS. რუკა: © OpenStreetMap-ის მონაწილეები.",
+        "when.today": "დღეს",
+        "when.yesterday": "გუშინ",
+        # Location sheet
+        "location.title": "ნებისმიერი ადგილის შემოწმება",
+        "location.intro": "ნახეთ ამინდი და ხანძრის რისკი საქართველოს ნებისმიერ ადგილას. საძიებლად დააჭირეთ Enter-ს.",
+        "location.search": "მოძებნეთ ქალაქი ან სოფელი",
+        "location.searching": "იძებნება…",
+        "location.error": "ძებნა მიუწვდომელია. შეამოწმეთ ინტერნეტი და სცადეთ ხელახლა.",
+        "location.none": "საქართველოში ადგილი სახელით „{query}“ ვერ მოიძებნა. შეამოწმეთ მართლწერა ან სცადეთ ახლომდებარე ქალაქი.",
+        "location.georgia": "საქართველო",
+    },
+}
+
+# Built-in Georgian cities and their regions
+CITY_NAMES = {
+    "Tbilisi": "თბილისი", "Kutaisi": "ქუთაისი", "Batumi": "ბათუმი", "Rustavi": "რუსთავი",
+    "Gori": "გორი", "Zugdidi": "ზუგდიდი", "Telavi": "თელავი", "Borjomi": "ბორჯომი",
+}
+REGION_NAMES = {
+    "Tbilisi": "თბილისი", "Imereti": "იმერეთი", "Adjara": "აჭარა", "Kvemo Kartli": "ქვემო ქართლი",
+    "Shida Kartli": "შიდა ქართლი", "Samegrelo-Zemo Svaneti": "სამეგრელო-ზემო სვანეთი",
+    "Kakheti": "კახეთი", "Samtskhe-Javakheti": "სამცხე-ჯავახეთი",
+}
+
+COMPASS = {
+    "en": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+    "ka": ["ჩრ", "ჩრ-აღმ", "აღმ", "სამხ-აღმ", "სამხ", "სამხ-დას", "დას", "ჩრ-დას"],
+}
+MONTHS = {
+    "en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "ka": ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"],
+}
+
+
+def translate(lang: str, key: str, **fields) -> str:
+    template = STRINGS[lang].get(key, STRINGS["en"][key])
+    return template.format(**fields) if fields else template
+
+
+def georgian_genitive(name: str) -> str:
+    """თბილისი -> თბილისის, მესტია -> მესტიის, მცხეთა -> მცხეთის."""
+    if name[-1:] in "ია":
+        return name[:-1] + "ის"
+    if name[-1:] in "ეოუ":
+        return name + "ს"
+    return name + "ის"

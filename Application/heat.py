@@ -65,7 +65,7 @@ def fetch_current_weather(lat: float = TBILISI[0], lon: float = TBILISI[1]) -> d
             "longitude": lon,
             "current": (
                 "temperature_2m,relative_humidity_2m,"
-                "wind_speed_10m,wind_direction_10m,cloud_cover,is_day"
+                "wind_speed_10m,wind_direction_10m,cloud_cover,is_day,weather_code"
             ),
             "timezone": "auto",  # "time" comes back in the place's local time
         },

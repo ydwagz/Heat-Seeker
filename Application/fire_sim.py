@@ -149,6 +149,24 @@ def ignite(grid, danger: float, sun: float):
         grid[r][c] = FIRE
 
 
+def start_fire(grid, obj: str | None):
+    """Light one fire where this kind of forest would most likely catch:
+    a flammable object, a tree next to a piece of glass, or the middle tree."""
+    size = len(grid)
+    if obj == FLAMMABLE:
+        spots = [(r, c) for r in range(size) for c in range(size) if grid[r][c] == FLAMMABLE]
+    elif obj == GLASS:
+        spots = [
+            (nr, nc)
+            for r in range(size) for c in range(size) if grid[r][c] == GLASS
+            for nr, nc in get_neighbors(grid, r, c) if grid[nr][nc] == TREE
+        ]
+    else:
+        spots = []
+    r, c = random.choice(spots) if spots else (size // 2, size // 2)
+    grid[r][c] = FIRE
+
+
 def simulate_forest(obj, danger, wind, wind_strength, sun, size=10):
     grid = make_forest(size, obj, OBJECTS_PER_FOREST)
     trees_before = count_trees(grid)

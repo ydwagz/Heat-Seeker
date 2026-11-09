@@ -4,15 +4,9 @@ A Python-based application that combines a **Heat Risk Checker** and a **Fire Sp
 
 ---
 
-## Appearance - V1
+## New Design - V-5
 
-<img width="372" height="831" alt="image" src="https://github.com/user-attachments/assets/d0df0792-1e80-45d9-aab7-3551d45ada19" />
-
----
-
-## Appearance - V2
-
-<img width="390" height="844" alt="image" src="https://github.com/user-attachments/assets/fddd2edf-25ae-49e1-b2a4-0eeaa0c36e92" />
+<img width="1133" height="754" alt="image" src="https://github.com/user-attachments/assets/5b809ca5-8687-4811-a8e6-74e92f2f4d3a" />
 
 ---
 

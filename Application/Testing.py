@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-TESTING = True
+TESTING = False
 
 
 # --- Weather: Home and Fire Risk screens -------------------------------------
@@ -18,10 +18,21 @@ TIME = "14:30"  # shown as "Updated 14:30 local time"
 # One line per fire: (latitude, longitude, hours ago, fire power in MW, place, region)
 # Leave the list empty, FIRES = [], to see the "no fires" screen.
 FIRES = [
+    (42.272, 42.625, 2, 14.0, "Kutaisi", "Imereti"),  # just west of Kutaisi
     (41.73, 45.33, 3, 12.4, "Sagarejo", "Kakheti"),
     (41.55, 43.25, 27, 3.2, "Aspindza", "Samtskhe-Javakheti"),
     (42.95, 41.25, 50, 21.7, "Gulripshi", "Autonomous Republic of Abkhazia"),
     (41.42, 46.25, 75, 5.6, "Lagodekhi", "Kakheti"),
+    (42.1242, 43.0135, 20, 0.8, "Kveda Sakara", "Imereti"),  # next to the Zestaponi ferroalloy plant
+]
+
+# Earlier detections of the same spots: (latitude, longitude, days ago).
+# A fire within 2 km of a factory or power plant (Data/industrial_sites.json) that was also
+# seen on another day is shown as "Likely industrial heat" instead of a fire.
+# Leave the list empty, SEEN_BEFORE = [], and the Kveda Sakara fire above shows as a fire.
+SEEN_BEFORE = [
+    (42.1245, 43.0127, 3),
+    (42.1239, 43.0141, 9),
 ]
 
 
@@ -68,3 +79,18 @@ def test_fires() -> list[dict]:
             }
         )
     return fires
+
+
+def test_history() -> list[dict]:
+    """The earlier detections above, shaped like NASA FIRMS rows."""
+    today = datetime.now(timezone.utc)
+    return [
+        {
+            "latitude": str(lat),
+            "longitude": str(lon),
+            "acq_date": (today - timedelta(days=days_ago)).strftime("%Y-%m-%d"),
+            "acq_time": "2300",
+            "frp": "1.0",
+        }
+        for lat, lon, days_ago in SEEN_BEFORE
+    ]

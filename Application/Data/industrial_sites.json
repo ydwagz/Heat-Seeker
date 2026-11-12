@@ -1,0 +1,24 @@
+{
+  "source": "OpenStreetMap contributors (ODbL), heat-producing industry in and near Georgia, collected 2026-11-12",
+  "sites": [
+    {"en": "Zestaponi Ferroalloy Factory", "ka": "ზესტაფონის ფეროშენადნობთა ქარხანა", "lat": 42.119, "lon": 43.0184},
+    {"en": "Kutaisi Metallurgical Plant", "ka": "ქუთაისის მეტალურგიული ქარხანა", "lat": 42.2299, "lon": 42.6644},
+    {"en": "Rustavi Metallurgical Plant", "ka": "რუსთავის მეტალურგიული კომბინატი", "lat": 41.5309, "lon": 45.0328},
+    {"en": "Rustavi coke and chemical plant", "ka": "რუსთავის კოქსოქიმიური საამქრო", "lat": 41.5315, "lon": 45.0395},
+    {"en": "Rustavi Azot fertilizer plant", "ka": "რუსთავის აზოტი", "lat": 41.5335, "lon": 45.0573},
+    {"en": "Hunnewell Cement, Rustavi", "ka": "ჰანიველ ცემენტი", "lat": 41.5145, "lon": 45.0488},
+    {"en": "Solo Cement, Rustavi", "ka": "სოლო ცემენტი", "lat": 41.5128, "lon": 45.0401},
+    {"en": "Kaspi Cement Plant", "ka": "კასპის ცემენტის ქარხანა", "lat": 41.9182, "lon": 44.4173},
+    {"en": "Kilns near Kaspi", "ka": "ღუმელები კასპთან", "lat": 41.8469, "lon": 44.4748},
+    {"en": "Tbilsresi Power Plant", "ka": "თბილსრესი", "lat": 41.4715, "lon": 45.0586},
+    {"en": "Gardabani Gas Turbine Power Plant", "ka": "გარდაბნის აირტურბინული ელექტროსადგური", "lat": 41.4799, "lon": 45.0669},
+    {"en": "Gardabani Combined Cycle Power Plant", "ka": "გარდაბნის თბოელექტროსადგური", "lat": 41.4604, "lon": 45.0532},
+    {"en": "Gas plant and flare near Gardabani", "ka": "გაზის საწარმო და ჩირაღდანი გარდაბანთან", "lat": 41.4377, "lon": 45.1441},
+    {"en": "Oil facility near Sagarejo", "ka": "ნავთობის ობიექტი საგარეჯოსთან", "lat": 41.7682, "lon": 45.2763},
+    {"en": "Tkvarcheli thermal power plant", "ka": "ტყვარჩელის თბოელექტროსადგური", "lat": 42.8421, "lon": 41.6769},
+    {"en": "Asphalt plant, Oni", "ka": "ასფალტის ქარხანა, ონი", "lat": 42.5673, "lon": 43.3387},
+    {"en": "Brick factory, Abasha", "ka": "აგურის ქარხანა, აბაშა", "lat": 42.2459, "lon": 42.1451},
+    {"en": "Brick works near Zugdidi", "ka": "აგურის ქარხანა ზუგდიდთან", "lat": 42.4907, "lon": 41.8014},
+    {"en": "Legi brick works, Kobuleti", "ka": "აგურის ქარხანა „ლეგი“, ქობულეთი", "lat": 41.8009, "lon": 41.8056}
+  ]
+}

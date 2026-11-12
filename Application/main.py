@@ -26,7 +26,15 @@ from fire_sim import (
 )
 from heat import fetch_current_weather, heat_risk_checker, search_places
 from NASA_FIRMS_API import DAYS as FIRE_DAYS
-from NASA_FIRMS_API import fetch_fires, iter_fires_in_georgia, place_name
+from NASA_FIRMS_API import (
+    MIN_DAYS_SEEN,
+    days_seen,
+    fetch_fires,
+    fetch_history,
+    iter_fires_in_georgia,
+    nearby_site,
+    place_name,
+)
 import Testing
 from translations import CITY_NAMES, COMPASS, LANGUAGES, MONTHS, REGION_NAMES, georgian_genitive, translate
 
@@ -458,6 +466,7 @@ class App:
         # One fire usually shows up as several detections a few hundred metres apart:
         # group them by ~1 km cell, keep the newest, and count the rest.
         groups = self.fires["groups"]
+        history: dict[str, list[dict]] = {}  # earlier detections around each industrial site
         # Test fires already carry an address, so they skip the OpenStreetMap look-up
         located = iter(detections) if Testing.TESTING else iter_fires_in_georgia(detections)
         while True:
@@ -472,7 +481,8 @@ class App:
             cell = (round(float(fire["latitude"]), 2), round(float(fire["longitude"]), 2))
             group = groups.get(cell)
             if group is None:
-                groups[cell] = {"fire": fire, "count": 1}
+                industrial = await self._industrial_heat(fire, detections, history)
+                groups[cell] = {"fire": fire, "count": 1, "industrial": industrial}
             else:
                 group["count"] += 1
                 if detected_at(fire) > detected_at(group["fire"]):
@@ -480,6 +490,23 @@ class App:
             self._render_fires()
         self.fires["status"] = "done"
         self._render_fires()
+
+    async def _industrial_heat(self, fire: dict, detections: list[dict], history: dict) -> dict | None:
+        """{"site", "days"} when a hot spot sits at a factory and keeps coming back, else None."""
+        lat, lon = float(fire["latitude"]), float(fire["longitude"])
+        site = nearby_site(lat, lon)
+        if site is None:
+            return None
+        if site["en"] not in history:
+            try:
+                if Testing.TESTING:
+                    history[site["en"]] = Testing.test_history()
+                else:
+                    history[site["en"]] = await asyncio.to_thread(fetch_history, site["lat"], site["lon"])
+            except Exception:
+                history[site["en"]] = []  # no history: judge on the last 5 days alone
+        seen = days_seen(lat, lon, history[site["en"]] + detections)
+        return {"site": site, "days": seen} if seen >= MIN_DAYS_SEEN else None
 
     def _render_fires(self):
         self.views.fires.render()
@@ -770,13 +797,13 @@ class Shortcuts:
             self.fires_title.value = t("home.fires_unavailable")
         elif fires["status"] != "done":
             self.fires_title.value = t("home.fires_loading")
-        elif not fires["groups"]:
+        elif not real_fires(fires["groups"]):
             self.fires_title.value = t("home.fires_none")
-        elif len(fires["groups"]) == 1:
+        elif len(real_fires(fires["groups"])) == 1:
             self.fires_title.value = t("home.fires_one")
         else:
-            self.fires_title.value = t("home.fires_many", count=len(fires["groups"]))
-        if fires["groups"]:
+            self.fires_title.value = t("home.fires_many", count=len(real_fires(fires["groups"])))
+        if real_fires(fires["groups"]):
             self.fires_icon.color, self.fires_badge.bgcolor = FLAME, FLAME_TINT
         else:
             self.fires_icon.color, self.fires_badge.bgcolor = FOREST, MINT
@@ -1067,59 +1094,189 @@ class PredictionView:
 # ---------------------------------------------------------------------------
 
 GEORGIA_TZ = timezone(timedelta(hours=4))  # Georgia is UTC+4 all year
-GEORGIA = json.loads((APP_DIR / "Data" / "georgia_outline.json").read_text(encoding="utf-8"))
-# (English name, lat, lon, label side). Tbilisi's label sits left, clear of the fire-prone east.
+
+
+def _data(name: str, default=None):
+    path = APP_DIR / "Data" / name
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
+
+
+GEORGIA = _data("georgia_outline.json")  # land border + real coastline, [lon, lat]
+RIVERS = _data("georgia_rivers.json", {"rivers": []})["rivers"]
+ELEVATION = _data("georgia_elevation.json")  # optional; without it the map has no relief shading
+MAJOR_RIVERS = {"Mtkvari", "Rioni", "Enguri", "Alazani"}
+
+# (English name, lat, lon, label side, label nudge up in px). Tbilisi's label sits left, clear of the
+# fire-prone east; Batumi's sits a little higher so it doesn't run along the Turkish border.
 MAP_CITIES = [
-    ("Tbilisi", 41.7151, 44.8271, "left"),
-    ("Kutaisi", 42.2679, 42.6946, "right"),
-    ("Batumi", 41.6168, 41.6367, "right"),
+    ("Tbilisi", 41.7151, 44.8271, "left", 0),
+    ("Kutaisi", 42.2679, 42.6946, "right", 0),
+    ("Batumi", 41.6168, 41.6367, "right", 7),
 ]
 CITY_LABEL_WIDTH = 72
 
+# Map colours: flat, light land on a white card, soft blue sea
+MAP_SEA = "#DCEAF6"
+MAP_LAND = "#FAFAFA"
+MAP_BORDER = "#374151"
+MAP_RIVER = "#86B4DC"
+RELIEF_INK = "#1F2937"
+
 # Equirectangular projection fitted to Georgia's outline; longitude is squeezed by
-# cos(latitude) so the country keeps its real proportions.
-MAP_WIDTH = 302
-MAP_PAD = 10
+# cos(latitude) so the country keeps its real proportions. The canvas fills the card.
+MAP_WIDTH = WINDOW_WIDTH - 2 * PAGE_PADDING - 26
+MAP_PAD_X = 14
+MAP_PAD_Y = 26
 _LONS = [lon for lon, _ in GEORGIA["outline"]]
 _LATS = [lat for _, lat in GEORGIA["outline"]]
 LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = min(_LONS), max(_LONS), min(_LATS), max(_LATS)
 LON_SQUEEZE = math.cos(math.radians((LAT_MIN + LAT_MAX) / 2))
-MAP_SCALE = (MAP_WIDTH - 2 * MAP_PAD) / ((LON_MAX - LON_MIN) * LON_SQUEEZE)
-MAP_HEIGHT = round((LAT_MAX - LAT_MIN) * MAP_SCALE + 2 * MAP_PAD)
+MAP_SCALE = (MAP_WIDTH - 2 * MAP_PAD_X) / ((LON_MAX - LON_MIN) * LON_SQUEEZE)
+MAP_HEIGHT = round((LAT_MAX - LAT_MIN) * MAP_SCALE + 2 * MAP_PAD_Y)
+
+# Neighbouring coasts (lat, lon) so the Black Sea reads as a sea, not a gap in the map
+RUSSIAN_COAST = [(43.58, 39.72), (43.43, 39.92)]  # Sochi, Adler -> Psou mouth
+TURKISH_COAST = [(41.39, 41.42), (41.35, 41.31), (41.27, 41.14), (41.19, 40.99), (41.18, 40.88), (41.09, 40.73),
+                 (41.02, 40.52), (40.95, 40.27)]  # Hopa ... Of
 
 
 def map_xy(lat: float, lon: float) -> tuple[float, float]:
-    x = MAP_PAD + (lon - LON_MIN) * LON_SQUEEZE * MAP_SCALE
-    y = MAP_PAD + (LAT_MAX - lat) * MAP_SCALE
+    x = MAP_PAD_X + (lon - LON_MIN) * LON_SQUEEZE * MAP_SCALE
+    y = MAP_PAD_Y + (LAT_MAX - lat) * MAP_SCALE
     return x, y
 
 
+def in_georgia(lon: float, lat: float) -> bool:
+    poly, hit = GEORGIA["outline"], False
+    j = len(poly) - 1
+    for i in range(len(poly)):
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (yj - yi) + xi:
+            hit = not hit
+        j = i
+    return hit
+
+
+def _relief() -> list[tuple[float, float, float, float, float]]:
+    """Hill shading from the elevation grid, lit from the north-west, as (x, y, w, h, opacity)
+    rectangles; neighbouring cells in a row with the same shade are merged into one."""
+    if not ELEVATION:
+        return []
+    step = ELEVATION["step"]
+    raw = {
+        tuple(float(v) for v in key.split(",")): h for key, h in ELEVATION["heights"].items() if h is not None
+    }
+    # The grid holds single-point samples, which look speckled; a 3x3 weighted average
+    # (1-2-1 in each direction) smooths them into broad ridges and valleys.
+    heights = {}
+    for lat, lon in raw:
+        total = weight = 0.0
+        for dy, wy in ((-1, 1), (0, 2), (1, 1)):
+            for dx, wx in ((-1, 1), (0, 2), (1, 1)):
+                h = raw.get((round(lat + dy * step, 3), round(lon + dx * step, 3)))
+                if h is not None:
+                    total += h * wy * wx
+                    weight += wy * wx
+        heights[(lat, lon)] = total / weight
+    get = lambda lat, lon, default: heights.get((round(lat, 3), round(lon, 3)), default)  # noqa: E731
+    dy_m = step * 111_200
+    light = (-0.5, 0.5, math.sqrt(0.5))  # x east, y north, z up: azimuth 315°, altitude 45°
+    cell_w, cell_h = step * LON_SQUEEZE * MAP_SCALE, step * MAP_SCALE
+    rows: dict[float, list[tuple[float, float]]] = {}
+    for (lat, lon), h in heights.items():
+        if h is None or not in_georgia(lon, lat):
+            continue
+        dx_m = dy_m * math.cos(math.radians(lat))
+        dzdx = (get(lat, lon + step, h) - get(lat, lon - step, h)) / (2 * dx_m) * 2  # 2x exaggeration
+        dzdy = (get(lat + step, lon, h) - get(lat - step, lon, h)) / (2 * dy_m) * 2
+        n = math.sqrt(dzdx * dzdx + dzdy * dzdy + 1)
+        lit = (-dzdx * light[0] - dzdy * light[1] + light[2]) / n
+        # shadowed slopes darken; higher ground gets a faint grey tint so ranges read at a glance
+        alpha = min(max((0.71 - lit) * 0.38, 0), 0.17) + min(max(h, 0) / 4000, 1) * 0.09
+        alpha = round(alpha / 0.012) * 0.012
+        if alpha >= 0.012:
+            rows.setdefault(lat, []).append((lon, alpha))
+    rects = []
+    for lat, cells in rows.items():
+        cells.sort()
+        run_start, run_end, run_alpha = None, None, None
+        for lon, alpha in cells + [(None, None)]:
+            if run_start is not None and (lon is None or alpha != run_alpha or round(lon - run_end, 3) > step):
+                x0, y = map_xy(lat, run_start)
+                x1, _ = map_xy(lat, run_end)
+                # whole-pixel edges: neighbouring patches meet exactly, with no seams or overlaps
+                left, right = round(x0 - cell_w / 2), round(x1 + cell_w / 2)
+                top, bottom = round(y - cell_h / 2), round(y + cell_h / 2)
+                rects.append((left, top, right - left, bottom - top, run_alpha))
+                run_start = None
+            if lon is None:
+                break
+            if run_start is None:
+                run_start, run_alpha = lon, alpha
+            run_end = lon
+    return rects
+
+
+RELIEF = _relief()
+
+
+def _path(points: list[tuple[float, float]], close: bool = False) -> list:
+    elements = [cv.Path.MoveTo(*points[0]), *[cv.Path.LineTo(x, y) for x, y in points[1:]]]
+    return elements + [cv.Path.Close()] if close else elements
+
+
 def georgia_map(app: App) -> ft.Stack:
-    """Georgia's outline with three cities for orientation. Pins are added to the returned Stack."""
-    points = [map_xy(lat, lon) for lon, lat in GEORGIA["outline"]]
-    outline = [cv.Path.MoveTo(*points[0]), *[cv.Path.LineTo(x, y) for x, y in points[1:]], cv.Path.Close()]
+    """Georgia with the Black Sea, relief shading, major rivers and three cities. Pins are added
+    to the returned Stack."""
+    land = _path([map_xy(lat, lon) for lon, lat in GEORGIA["outline"]], close=True)
+    far_west = (MAP_PAD_X - 400) / (LON_SQUEEZE * MAP_SCALE) + LON_MIN  # well past the card's left edge
+    sea_points = (
+        [(44.6, far_west), *RUSSIAN_COAST]
+        + [(lat, lon) for lon, lat in GEORGIA["coast"]]
+        + [*TURKISH_COAST, (40.2, 40.27), (40.2, far_west)]
+    )
+    sea = _path([map_xy(lat, lon) for lat, lon in sea_points], close=True)
+    stroke = lambda color, width: ft.Paint(  # noqa: E731
+        color=color, style=ft.PaintingStyle.STROKE, stroke_width=width,
+        stroke_join=ft.StrokeJoin.ROUND, stroke_cap=ft.StrokeCap.ROUND,
+    )
     shapes = [
-        cv.Path(outline, paint=ft.Paint(color=PANEL, style=ft.PaintingStyle.FILL)),
-        cv.Path(
-            outline,
-            paint=ft.Paint(color="#374151", style=ft.PaintingStyle.STROKE, stroke_width=1.5, stroke_join=ft.StrokeJoin.ROUND),
-        ),
+        cv.Path(sea, paint=ft.Paint(color=MAP_SEA, style=ft.PaintingStyle.FILL)),
+        cv.Shadow(land, color=ft.Colors.with_opacity(0.35, "#000000"), elevation=3),
+        cv.Path(land, paint=ft.Paint(color=MAP_LAND, style=ft.PaintingStyle.FILL)),
+        *[
+            cv.Rect(x, y, w, h, paint=ft.Paint(color=ft.Colors.with_opacity(a, RELIEF_INK), anti_alias=False))
+            for x, y, w, h, a in RELIEF
+        ],
     ]
+    for river in RIVERS:
+        width = 1.4 if river["en"] in MAJOR_RIVERS else 0.9
+        for line in river["lines"]:
+            shapes.append(cv.Path(_path([map_xy(lat, lon) for lon, lat in line]), paint=stroke(MAP_RIVER, width)))
+    shapes.append(cv.Path(land, paint=stroke(MAP_BORDER, 1.3)))
+
     labels = []
-    for name, lat, lon, side in MAP_CITIES:
+    for name, lat, lon, side, nudge in MAP_CITIES:
         x, y = map_xy(lat, lon)
-        shapes.append(cv.Circle(x, y, 3, paint=ft.Paint(color=MUTED)))
-        left = x + 6 if side == "right" else x - 6 - CITY_LABEL_WIDTH
+        shapes.append(cv.Circle(x, y, 4.5, paint=ft.Paint(color=CARD)))
+        shapes.append(cv.Circle(x, y, 2.8, paint=ft.Paint(color=INK)))
+        left = x + 7 if side == "right" else x - 7 - CITY_LABEL_WIDTH
         align = ft.TextAlign.LEFT if side == "right" else ft.TextAlign.RIGHT
         labels.append(
             ft.Text(
-                app.city_name(name), size=12.5, color=INK, weight=ft.FontWeight.W_500,
+                app.city_name(name), size=12, color=INK, weight=ft.FontWeight.W_500,
                 font_family=font_for(ft.FontWeight.W_500),
-                left=left, top=y - 10, width=CITY_LABEL_WIDTH, text_align=align,
+                left=left, top=y - 9 - nudge, width=CITY_LABEL_WIDTH, text_align=align,
             )
         )
+    country = ft.Text(
+        app.t("map.country"), size=15, color=MAP_BORDER, weight=ft.FontWeight.W_600,
+        font_family=font_for(ft.FontWeight.W_600), style=ft.TextStyle(letter_spacing=1.2),
+        right=16, top=14,
+    )
     return ft.Stack(
-        [cv.Canvas(shapes, width=MAP_WIDTH, height=MAP_HEIGHT), *labels],
+        [cv.Canvas(shapes, width=MAP_WIDTH, height=MAP_HEIGHT), *labels, country],
         width=MAP_WIDTH,
         height=MAP_HEIGHT,
         clip_behavior=ft.ClipBehavior.NONE,
@@ -1127,26 +1284,60 @@ def georgia_map(app: App) -> ft.Stack:
 
 
 def fire_pin(lat: float, lon: float, power_mw: float, tooltip: str) -> tuple[ft.Control, ft.Container]:
-    """A glowing fire marker, bigger for more powerful fires. Returns (pin, ring); the ring pings."""
+    """A red location pin with a soft glow and drop shadow, bigger for more powerful fires.
+    Its tip sits on the fire. Returns (pin, ring); the ring pings out from the tip."""
     x, y = map_xy(lat, lon)
-    dot = round(9 + min(7, 2.5 * math.log2(1 + power_mw)))
-    glow = dot * 2.2
-    offset = (glow - dot) / 2
+    size = round(26 + min(8, 3 * math.log2(1 + power_mw)))
+    box_w, box_h = size + 28, size + 18
+    tip_x, tip_y = box_w / 2, box_h - 9  # where the pin points, inside the box
+    glow = size * 0.5
     ring = ft.Container(
-        width=dot, height=dot, border_radius=dot / 2, border=ft.Border.all(2, FLAME), opacity=0.7, left=offset, top=offset
+        width=10, height=10, border_radius=5, border=ft.Border.all(2, FLAME), opacity=0.7,
+        left=tip_x - 5, top=tip_y - 5,
     )
     pin = ft.Stack(
         [
-            ft.Container(width=glow, height=glow, border_radius=glow / 2, bgcolor=FLAME, opacity=0.22),
+            ft.Container(  # soft red glow around the spot
+                width=glow * 2, height=glow * 2, border_radius=glow, left=tip_x - glow, top=tip_y - glow,
+                bgcolor=ft.Colors.with_opacity(0.16, FLAME),
+                shadow=ft.BoxShadow(blur_radius=14, spread_radius=2, color=ft.Colors.with_opacity(0.30, FLAME)),
+            ),
             ring,
+            ft.Container(  # contact shadow under the tip
+                width=10, height=3, border_radius=5, left=tip_x - 5, top=tip_y - 1.5,
+                bgcolor=ft.Colors.with_opacity(0.14, "#000000"),
+                shadow=ft.BoxShadow(blur_radius=3, color=ft.Colors.with_opacity(0.18, "#000000")),
+            ),
             ft.Container(
-                width=dot, height=dot, border_radius=dot / 2, bgcolor=FLAME, border=ft.Border.all(1.5, CARD),
-                left=offset, top=offset, tooltip=tooltip,
+                ft.Icon(
+                    ft.Icons.LOCATION_ON, size=size, color=FLAME,
+                    shadows=[ft.BoxShadow(blur_radius=6, offset=ft.Offset(0, 3), color=ft.Colors.with_opacity(0.30, "#000000"))],
+                ),
+                left=tip_x - size / 2, top=tip_y - size * 0.92, tooltip=tooltip,
             ),
         ],
-        left=x - glow / 2, top=y - glow / 2, width=glow, height=glow, clip_behavior=ft.ClipBehavior.NONE,
+        left=x - tip_x, top=y - tip_y, width=box_w, height=box_h, clip_behavior=ft.ClipBehavior.NONE,
     )
     return pin, ring
+
+
+def real_fires(groups: dict) -> list[dict]:
+    return [g for g in groups.values() if not g.get("industrial")]
+
+
+def industrial_spots(groups: dict) -> list[dict]:
+    return [g for g in groups.values() if g.get("industrial")]
+
+
+def heat_pin(lat: float, lon: float, tooltip: str) -> ft.Control:
+    """A small grey square for likely industrial heat: shown, but not pinging like a fire,
+    and square so it isn't mistaken for a round city dot."""
+    x, y = map_xy(lat, lon)
+    size = 11
+    return ft.Container(
+        width=size, height=size, border_radius=2.5, bgcolor="#4B5563", border=ft.Border.all(1.5, CARD), shadow=SHADOW,
+        left=x - size / 2, top=y - size / 2, tooltip=tooltip,
+    )
 
 
 def detected_at(fire: dict) -> datetime:
@@ -1187,6 +1378,42 @@ def fire_card(app: App, fire: dict, detections: int) -> ft.Control:
     )
 
 
+def industrial_card(app: App, group: dict) -> ft.Control:
+    t, fire, info = app.t, group["fire"], group["industrial"]
+    lat, lon = fire["latitude"], fire["longitude"]
+    site = info["site"]["ka" if app.lang == "ka" else "en"]
+    left = lambda value, **kw: text(value, text_align=ft.TextAlign.LEFT, **kw)  # noqa: E731
+    tag = ft.Container(
+        text(t("fires.industrial_label"), size=11.5, color=MUTED, weight=ft.FontWeight.W_600),
+        bgcolor=PANEL,
+        border_radius=999,
+        padding=ft.Padding.symmetric(horizontal=8, vertical=2),
+    )
+    return card(
+        ft.Row(
+            [
+                icon_badge(ft.Icon(ft.Icons.FACTORY_OUTLINED, color=MUTED, size=21), PANEL),
+                ft.Column(
+                    [
+                        ft.Row([tag], spacing=0),
+                        left(place_name(fire["address"]), size=15.5, weight=ft.FontWeight.W_600),
+                        left(app.when(detected_at(fire)), size=13.5, color=MUTED),
+                        left(t("fires.industrial_detail", site=site, days=info["days"]), size=12.5, color=FAINT),
+                    ],
+                    spacing=2,
+                    expand=True,
+                ),
+                ft.IconButton(
+                    ft.CupertinoIcons.ARROW_UP_RIGHT_SQUARE, icon_color=MUTED, icon_size=20, tooltip=t("fires.open_map"),
+                    url=f"https://www.google.com/maps?q={lat},{lon}",
+                ),
+            ],
+            spacing=14,
+        ),
+        padding=ft.Padding.only(left=16, right=6, top=14, bottom=14),
+    )
+
+
 class FiresView:
     """Map + list of fires in Georgia, drawn from `app.fires`."""
 
@@ -1197,6 +1424,7 @@ class FiresView:
         self.base_layers = list(self.map.controls)
         self.rings: list[ft.Container] = []
         self.status = text("", size=15)
+        self.note = text("", size=13.5, color=MUTED, visible=False)
         self.status_icon = ft.Icon(ft.CupertinoIcons.ANTENNA_RADIOWAVES_LEFT_RIGHT, color=MUTED, size=22)
         self.status_badge = icon_badge(self.status_icon, PANEL, 48)
         self.list = ft.Column(spacing=12)
@@ -1212,10 +1440,10 @@ class FiresView:
                 ),
                 intro(t("fires.intro", days=FIRE_DAYS)),
                 ft.Container(height=8),
-                card(self.map, padding=ft.Padding.symmetric(vertical=28), alignment=ft.Alignment.CENTER),
+                card(self.map, padding=0, alignment=ft.Alignment.CENTER, clip_behavior=ft.ClipBehavior.ANTI_ALIAS),
                 card(
                     ft.Column(
-                        [self.status_badge, self.status],
+                        [self.status_badge, self.status, self.note],
                         spacing=10,
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
@@ -1230,12 +1458,21 @@ class FiresView:
 
     def render(self):
         app, t, fires = self.app, self.app.t, self.app.fires
-        groups = fires["groups"]
+        fire_groups, heat_groups = real_fires(fires["groups"]), industrial_spots(fires["groups"])
+        groups = fire_groups  # the counts and messages below are about real fires
         status = fires["status"]
         self.refresh.disabled = status in ("loading", "checking")
 
         pins, self.rings = [], []
-        for g in groups.values():
+        for g in heat_groups:
+            fire = g["fire"]
+            pins.append(
+                heat_pin(
+                    float(fire["latitude"]), float(fire["longitude"]),
+                    f"{t('fires.industrial_label')}\n{place_name(fire['address'])}",
+                )
+            )
+        for g in fire_groups:
             fire = g["fire"]
             pin, ring = fire_pin(
                 float(fire["latitude"]), float(fire["longitude"]), float(fire["frp"]),
@@ -1244,8 +1481,16 @@ class FiresView:
             pins.append(pin)
             self.rings.append(ring)
         self.map.controls = self.base_layers + pins
-        newest_first = sorted(groups.values(), key=lambda g: detected_at(g["fire"]), reverse=True)
-        self.list.controls = [fire_card(app, g["fire"], g["count"]) for g in newest_first]
+        newest = lambda gs: sorted(gs, key=lambda g: detected_at(g["fire"]), reverse=True)  # noqa: E731
+        self.list.controls = [fire_card(app, g["fire"], g["count"]) for g in newest(fire_groups)] + [
+            industrial_card(app, g) for g in newest(heat_groups)
+        ]
+
+        self.note.visible = bool(heat_groups) and status not in ("loading", "nasa_error")
+        if len(heat_groups) == 1:
+            self.note.value = t("fires.industrial_one")
+        elif heat_groups:
+            self.note.value = t("fires.industrial_many", count=len(heat_groups))
 
         if groups:
             self.status_icon.color, self.status_badge.bgcolor = FLAME, FLAME_TINT

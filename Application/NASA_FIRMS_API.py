@@ -2,6 +2,7 @@ import csv
 import json
 import math
 import os
+import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -10,8 +11,10 @@ import requests
 import truststore
 from dotenv import load_dotenv
 
-truststore.inject_into_ssl()
-load_dotenv()
+# Windows certificate store for HTTPS behind antivirus scanning; not on Android (see heat.py)
+if sys.platform == "win32":
+    truststore.inject_into_ssl()
+load_dotenv(Path(__file__).parent / ".env")  # next to this file, wherever the app is started from
 
 FIRMS_KEY = os.getenv("FIRMS_KEY")
 FIRMS_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
@@ -37,10 +40,10 @@ def fetch_fires(bbox: str = GEORGIA_BBOX, days: int = DAYS, start: date | None =
     return list(csv.DictReader(response.text.splitlines()))
 
 
-def look_up_address(lat: str, lon: str) -> dict:
+def look_up_address(lat: str, lon: str, lang: str = "en") -> dict:
     response = requests.get(
         NOMINATIM_URL,
-        params={"lat": lat, "lon": lon, "format": "json", "accept-language": "en"},
+        params={"lat": lat, "lon": lon, "format": "json", "accept-language": lang},
         headers={"User-Agent": USER_AGENT},
         timeout=30,
     )
@@ -48,13 +51,13 @@ def look_up_address(lat: str, lon: str) -> dict:
     return response.json().get("address", {})
 
 
-def iter_fires_in_georgia(fires: list[dict]):
+def iter_fires_in_georgia(fires: list[dict], lang: str = "en"):
     """Yield each fire located in Georgia, with its address, as soon as it's confirmed."""
     addresses = {}
     for fire in fires:
         cell = (round(float(fire["latitude"]), 2), round(float(fire["longitude"]), 2))
         if cell not in addresses:
-            addresses[cell] = look_up_address(fire["latitude"], fire["longitude"])
+            addresses[cell] = look_up_address(fire["latitude"], fire["longitude"], lang)
             time.sleep(1)  # Nominatim allows at most 1 request per second
         address = addresses[cell]
         if address.get("country_code") == COUNTRY_CODE:

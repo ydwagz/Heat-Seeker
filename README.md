@@ -2,6 +2,61 @@
 
 A Python-based application that combines a **Heat Risk Checker** and a **Fire Spread Simulator** to analyze weather conditions and simulate how wildfires spread.
 
+It is built with [Flet](https://flet.dev), so the same code runs as a **Windows desktop app** and as an **Android app (APK)**. It uses live weather for any place in Georgia, predicts how a forest fire would behave in that weather, and shows fires that NASA satellites have spotted in Georgia over the last 5 days, in **English and Georgian**.
+
+---
+
+## Screenshots (v1.3)
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/loading.png" width="230" alt="Loading screen"><br><b>Loading screen</b></td>
+    <td align="center"><img src="docs/screenshots/home.png" width="230" alt="Home screen with live weather"><br><b>Home</b> (live weather)</td>
+    <td align="center"><img src="docs/screenshots/home-hot-test.png" width="230" alt="Home screen on a hot day"><br><b>Home</b> on a hot, dry day*</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/fire-risk.png" width="230" alt="Fire Risk screen"><br><b>Fire Risk</b>*</td>
+    <td align="center"><img src="docs/screenshots/forest.png" width="230" alt="Forest simulation with burned trees"><br><b>Forest prediction</b>*</td>
+    <td align="center"><img src="docs/screenshots/fires-map.png" width="230" alt="Fires Happening map"><br><b>Fires Happening</b>*</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/fires-list.png" width="230" alt="List of fires and industrial heat"><br><b>Fire list</b>*</td>
+    <td align="center"><img src="docs/screenshots/settings.png" width="230" alt="Settings sheet"><br><b>Settings</b></td>
+    <td align="center"><img src="docs/screenshots/home-georgian.png" width="230" alt="Home screen in Georgian"><br><b>Georgian</b>*</td>
+  </tr>
+</table>
+
+\* Taken in test mode (see [Test mode](#test-mode)) with made-up weather (38 °C, 15% humidity, 25 km/h wind) and sample fires, to show what the app looks like when the danger is high. The amber **Test data** tag marks these.
+
+---
+
+## Features
+
+### Home
+- **Live weather** for Tbilisi or any town in Georgia (Open-Meteo): temperature, humidity, wind and cloud cover, with a weather icon that follows the sky (sun, night, cloud, rain, snow, wind).
+- **Heat risk** shown as a coloured pill under the temperature (Safe, Caution, Extreme caution, Danger, Extreme danger), worked out with the Heat Index formula, plus a "feels like" temperature and a green-to-red risk meter.
+- **Today's fire danger** and the **number of fires in Georgia**, as cards that open the other screens.
+- **Check any location**: search any town or village in Georgia (only Georgia), or pick one of 8 cities.
+- **Check any temperature**: a small calculator for the heat index of any temperature and humidity.
+
+### Fire Risk
+- **Fire danger level** (Low, Moderate, High, Extreme) for the chosen place, from temperature, humidity, wind and sunshine, shown as a big coloured pill.
+- **Three cases**, each simulated on 300 forests: *heat alone*, *broken glass* (it can focus sunlight, so only by day) and *flammable litter*. Each card shows the share of trees that burn on average.
+- **A 10×10 forest** for the selected case, showing a typical outcome: green trees, orange flames and charred trees, with a legend.
+- **Predict fire**: fetches the latest weather, lights a fire in the forest and animates it spreading with the real wind direction and strength.
+- The weather, and with it the prediction, **updates by itself every 15 minutes**.
+
+### Fires Happening
+- **A map of Georgia** with the real Black Sea coastline, terrain shading, the six main rivers (Mtkvari, Rioni, Enguri, Alazani, Tskhenistskali, Aragvi), city dots and a legend.
+- **Red pins** for fires detected by NASA's VIIRS NOAA-21 satellite in the last 5 days, sized by fire power. Detections are checked against OpenStreetMap so only fires **inside Georgia** are shown.
+- **A list of fires** with place name, time (Georgian time) and fire power, each with a link to Google Maps.
+- **Likely industrial heat**: satellites can't tell a steel plant from a fire. A hot spot within 2 km of a known heat-producing site (19 sites, such as the Zestaponi Ferroalloy Factory, the Rustavi plants and the Gardabani power stations) that was also seen on another day in the last 15 days is shown as a grey square and labelled *Likely industrial heat*, not counted as a fire.
+
+### Everywhere
+- **English and Georgian**, switched in Settings. The choice (and °C/°F) is remembered between launches. Place names from search and OpenStreetMap come in the chosen language.
+- **Custom loading screen**: the phone's splash screen, a startup screen and an in-app loading screen, all on the app icon's light blue.
+- **Clean, mobile-first design**: Inter and Noto Sans Georgian fonts in real weights, a single 4-step risk palette (green, yellow, orange, red), soft shadows, and a tab bar for the three screens. On phones the header and tab bar stay clear of the status and navigation bars.
+
 ---
 
 ## New Design - V-5
@@ -27,7 +82,7 @@ py -m venv env
 **3. Activate the virtual environment**
 
 ```bash
-env\\Scripts\\activate
+env\Scripts\activate
 ```
 
 **4. Install the required dependencies**
@@ -49,6 +104,116 @@ pip install -r requirements.txt
 ```
 
 `os` and `csv` are part of Python's standard library, so they do not need to be installed separately.
+
+**7. Add your NASA FIRMS key**
+
+The Fires Happening screen needs a free NASA FIRMS map key ([request one here](https://firms.modaps.eosdis.nasa.gov/api/map_key/)). Create a file called `.env` in the `Application` folder with:
+
+```bash
+FIRMS_KEY=your_key_here
+```
+
+`.env` is listed in `.gitignore`, so the key is never committed.
+
+---
+
+## Running the App
+
+### On the computer
+
+```bash
+cd Application
+```
+
+```bash
+python main.py
+```
+
+The app opens in a phone-sized window. Use the Python from the virtual environment (activate it first, or run `..\env\Scripts\python.exe main.py`); the system Python doesn't have Flet installed.
+
+### On a phone, live from the computer
+
+Install the **Flet** app from Google Play or the App Store, connect the phone and the computer to the same Wi-Fi, then run:
+
+```bash
+cd Application
+```
+
+```bash
+flet run --android
+```
+
+Scan the QR code with the Flet app. Changes to the code reload on the phone as soon as they are saved. (Use `--ios` for an iPhone.)
+
+### As an Android app (APK)
+
+Double-click **`build_apk.bat`** in the project folder, or run it from a terminal. It runs `flet build apk`, keeps all the build tools (Flutter, Java, Android SDK, about 8–10 GB) in `E:\FletTools` instead of drive C:, and works behind antivirus HTTPS scanning. The first build downloads those tools and takes 15–30 minutes; later builds take a few minutes.
+
+```bash
+build_apk.bat --arch arm64-v8a
+```
+
+builds a smaller APK (about 60 MB) for 64-bit phones, which is nearly every Android phone from the last 6–7 years. The APK is saved in `Application\build\apk\`. Copy it to the phone, open it and allow "Install unknown apps". The app's name, version, icon, splash screen and startup screen are set in `Application\pyproject.toml`.
+
+---
+
+## Test Mode
+
+`Application/Testing.py` lets you try the app with made-up data instead of live data:
+
+```python
+TESTING = True   # False = live weather and live NASA fires
+TEMPERATURE_C = 38
+HUMIDITY = 15
+WIND_SPEED_KMH = 25
+WIND_FROM = "W"
+SKY = "clear"    # clear, cloudy, fog, rain, snow, storm
+FIRES = [
+    (42.272, 42.625, 2, 14.0, "Kutaisi", "Imereti"),  # latitude, longitude, hours ago, fire power (MW), place, region
+    ...
+]
+SEEN_BEFORE = [...]  # earlier detections, for testing the "Likely industrial heat" label
+```
+
+While test mode is on, a **Test data** tag is shown next to the logo, so test values are never mistaken for real ones.
+
+---
+
+## Project Structure
+
+```
+Heat-Seeker/
+├── build_apk.bat              Builds the Android APK (tools kept on E:)
+├── docs/screenshots/          Screenshots used in this README
+└── Application/
+    ├── main.py                The app: screens, map, loading screen, settings
+    ├── heat.py                Heat Index, live weather and place search (Open-Meteo)
+    ├── fire_sim.py            Forest fire simulation and the 300-forest prediction
+    ├── NASA_FIRMS_API.py      NASA FIRMS fires, Georgia filter, industrial heat check
+    ├── translations.py        All interface text in English and Georgian
+    ├── Testing.py             Test mode values
+    ├── pyproject.toml         Android build settings (name, version, icon, splash)
+    ├── .env                   FIRMS_KEY (not committed)
+    ├── Data/
+    │   ├── georgia_outline.json     Georgia's border and coastline
+    │   ├── georgia_rivers.json      Main rivers
+    │   ├── georgia_elevation.json   Terrain heights for the map shading
+    │   └── industrial_sites.json    Factories and power plants for the industrial heat check
+    └── assets/                Icons, images, splash screen and fonts
+```
+
+---
+
+## Data Sources and Credits
+
+| What | Source |
+|---|---|
+| Weather and place search | [Open-Meteo](https://open-meteo.com) forecast and geocoding APIs |
+| Fires | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov), VIIRS NOAA-21 near-real-time data |
+| Place names for fires | [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) |
+| Map outline, coastline, rivers, industrial sites | © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL |
+| Terrain heights | Copernicus DEM GLO-90, via the Open-Meteo elevation API |
+| Fonts | [Inter](https://rsms.me/inter/) and [Noto Sans Georgian](https://github.com/notofonts/georgian), SIL Open Font License |
 
 ---
 
@@ -399,4 +564,4 @@ The application's design was created with AI assistance (Claude Code Opus 5.5).
 
 The application icon was created with ChatGPT by OpenAI.
 
-<img width="473" height="401" alt="image" src="https://github.com/user-attachments/assets/be480192-ea4c-4484-9eb6-6fbc81c43647Ma
+<img width="473" height="401" alt="Heat-Seeker app icon" src="https://github.com/user-attachments/assets/be480192-ea4c-4484-9eb6-6fbc81c43647" />

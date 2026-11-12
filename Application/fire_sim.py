@@ -202,6 +202,9 @@ def predict_spread(
         burned = [b for _, b in outcomes]
         total_trees = count_trees(make_forest(size, obj, OBJECTS_PER_FOREST))
         avg = sum(burned) / runs
+        # The example forest is the run closest to the average, so the picture matches the number
+        # (the middle run is often an untouched forest even when the average is several trees).
+        typical = min(outcomes, key=lambda o: abs(o[1] - avg))
         results.append(
             {
                 "key": key,
@@ -211,7 +214,7 @@ def predict_spread(
                 "max_burned": burned[-1],
                 "fire_chance": 100 * sum(b > 0 for b in burned) / runs,
                 "total_trees": total_trees,
-                "sample_grid": outcomes[runs // 2][0],
+                "sample_grid": typical[0],
             }
         )
 

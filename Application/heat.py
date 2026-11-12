@@ -1,7 +1,12 @@
+import sys
+
 import requests
 import truststore
 
-truststore.inject_into_ssl()
+# Use the Windows certificate store, so HTTPS works behind antivirus web scanning.
+# Only on Windows: on Android it would hide the certificates requests needs.
+if sys.platform == "win32":
+    truststore.inject_into_ssl()
 
 TBILISI = (41.72, 44.79)
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"

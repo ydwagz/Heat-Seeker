@@ -39,7 +39,7 @@ import Testing
 from translations import CITY_NAMES, COMPASS, LANGUAGES, MONTHS, REGION_NAMES, georgian_genitive, translate
 
 APP_DIR = Path(__file__).parent
-IMAGES = APP_DIR / "Images"
+IMAGES = APP_DIR / "assets"
 APP_ICON = IMAGES / "icon.ico"
 
 WINDOW_WIDTH = 390
@@ -60,30 +60,41 @@ LINE = "#E5E7EB"  # borders, dividers
 FOREST = "#1A7F4B"  # primary green: main actions, active states, positive status
 MINT = "#E8F5EE"  # soft green: positive status backgrounds, selected cards
 INK = "#111827"  # text primary
-MUTED = "#6B7280"  # text secondary
-FAINT = "#9CA3AF"  # text tertiary
+MUTED = "#4B5563"  # text secondary (a step darker than usual, for reading outdoors)
+FAINT = "#6B7280"  # text tertiary
 FLAME = "#DC2626"  # danger / warning, fires
 FLAME_TINT = "#FEE2E2"
-BURNED = "#D1D5DB"  # burned tree in the forest grids
+BURNED = "#57534E"  # charred tree in the forest grids
+BURNING = "#F97316"  # flames in the forest grids
+# Living trees vary a little in shade so a calm, all-green forest doesn't look flat
+TREE_SHADES = ["#1A7F4B", "#15803D", "#22915A", "#166534"]
 
-# Inter, bundled in Images/fonts (OFL). Flet registers one file per family name, so each
-# weight is its own family; Georgian letters fall back to the system's Georgian font.
+# Inter for Latin letters and digits, Noto Sans Georgian for Georgian letters, both bundled
+# in assets/fonts (OFL) in four real weights. Flet registers one file per family name, so each
+# weight is its own family. Bundling the Georgian font matters on phones: Android's built-in
+# Georgian font draws thinner, so Georgian headers looked lighter there than on the PC.
 FONT = "Inter"
+GEORGIAN = "Noto Georgian"
 FONT_FILES = {
     "Inter": "/fonts/Inter-Regular.ttf",
     "Inter Medium": "/fonts/Inter-Medium.ttf",
     "Inter SemiBold": "/fonts/Inter-SemiBold.ttf",
     "Inter Bold": "/fonts/Inter-Bold.ttf",
+    "Noto Georgian": "/fonts/NotoSansGeorgian-Regular.ttf",
+    "Noto Georgian Medium": "/fonts/NotoSansGeorgian-Medium.ttf",
+    "Noto Georgian SemiBold": "/fonts/NotoSansGeorgian-SemiBold.ttf",
+    "Noto Georgian Bold": "/fonts/NotoSansGeorgian-Bold.ttf",
 }
-_WEIGHT_FAMILY = {
-    ft.FontWeight.W_500: "Inter Medium",
-    ft.FontWeight.W_600: "Inter SemiBold",
-    ft.FontWeight.W_700: "Inter Bold",
-}
+_WEIGHT_SUFFIX = {ft.FontWeight.W_500: " Medium", ft.FontWeight.W_600: " SemiBold", ft.FontWeight.W_700: " Bold"}
 
 
 def font_for(weight) -> str:
-    return _WEIGHT_FAMILY.get(weight, FONT)
+    return FONT + _WEIGHT_SUFFIX.get(weight, "")
+
+
+def georgian_for(weight) -> list[str]:
+    """Fallback family for Georgian letters, in the same weight as the Latin text around them."""
+    return [GEORGIAN + _WEIGHT_SUFFIX.get(weight, "")]
 
 # Soft elevation: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04)
 SHADOW = [
@@ -100,7 +111,10 @@ RISK_BANDS = [
     ("Extreme Danger", "#991B1B", 140),
 ]
 RISK_COLORS = {level: color for level, color, _ in RISK_BANDS}
-RISK_GRADIENT = ["#22C55E", "#EAB308", "#EF4444"]
+# One 4-step risk palette for the whole app: green, yellow, orange, red
+RISK_GRADIENT = ["#22C55E", "#EAB308", "#F97316", "#EF4444"]
+# Heat-risk pill background for each band
+HEAT_TINTS = {"Safe": MINT, "Caution": "#FEF9C3", "Extreme Caution": "#FFEDD5", "Danger": FLAME_TINT, "Extreme Danger": "#FECACA"}
 # Meter thumb fill: the gradient colour under each band, so the thumb reads as "you are here"
 RISK_THUMB = {"Safe": "#22C55E", "Caution": "#84CC16", "Extreme Caution": "#EAB308", "Danger": "#F97316", "Extreme Danger": "#EF4444"}
 SCALE_MIN_F = 40
@@ -113,8 +127,9 @@ DANGER_COLORS = {
     "Extreme": ("#B91C1C", FLAME_TINT),
 }
 
-# Prediction case icons
+# Prediction case icons, and a light tint for each case's card when it isn't selected
 CASE_ICONS = {"natural": "sun_icon.png", "glass": "glass_icon.png", "flammable": "flammable_litter_icon.png"}
+CASE_TINTS = {"natural": "#FFFBEB", "glass": "#EFF6FF", "flammable": "#FFF7ED"}
 
 # Built-in Georgian cities: (English name, lat, lon, English region)
 GEORGIAN_CITIES = [
@@ -137,7 +152,10 @@ HOME, FIRE_SPREAD, FIRES_HAPPENING = 0, 1, 2
 
 
 def text(value="", size=14, color=INK, weight=None, text_align=ft.TextAlign.CENTER, **kwargs) -> ft.Text:
-    return ft.Text(value, size=size, color=color, weight=weight, font_family=font_for(weight), text_align=text_align, **kwargs)
+    return ft.Text(
+        value, size=size, color=color, weight=weight, font_family=font_for(weight),
+        font_family_fallback=georgian_for(weight), text_align=text_align, **kwargs,
+    )
 
 
 def rich(template_text: str, bold_color: str | None = None, bold_weight=ft.FontWeight.W_700) -> list[ft.TextSpan]:
@@ -152,6 +170,7 @@ def rich(template_text: str, bold_color: str | None = None, bold_weight=ft.FontW
                     ft.TextStyle(
                         weight=bold_weight if bold else None,
                         font_family=font_for(bold_weight) if bold else None,
+                        font_family_fallback=georgian_for(bold_weight) if bold else None,
                         color=bold_color if bold else None,
                     ),
                 )
@@ -174,14 +193,27 @@ def intro(value: str) -> ft.Text:
 
 
 def image(name: str, width: float, height: float | None = None) -> ft.Image:
-    # Served from the assets folder (Images), so it also works on a phone or in a browser
+    # Served from the assets folder, so it also works in the Android app and in a browser
     return ft.Image(src=f"/{name}", width=width, height=height or width, fit=ft.BoxFit.CONTAIN)
 
 
 def card(content: ft.Control, **kwargs) -> ft.Container:
     """White surface with the soft two-layer shadow."""
-    kwargs.setdefault("padding", 16)
-    return ft.Container(content=content, bgcolor=CARD, border_radius=16, shadow=SHADOW, **kwargs)
+    kwargs.setdefault("padding", 18)
+    kwargs.setdefault("bgcolor", CARD)
+    return ft.Container(content=content, border_radius=16, shadow=SHADOW, **kwargs)
+
+
+def pill(label: ft.Text, color: str, tint: str, icon: ft.IconData | None = None) -> ft.Container:
+    """A rounded status label, e.g. the heat risk under the temperature."""
+    label.color = color
+    parts = [ft.Icon(icon, color=color, size=15)] if icon else []
+    return ft.Container(
+        ft.Row([*parts, label], spacing=6, tight=True),
+        bgcolor=tint,
+        border_radius=999,
+        padding=ft.Padding.symmetric(horizontal=14, vertical=7),
+    )
 
 
 def icon_badge(icon: ft.Control, tint: str = MINT, size: int = 44) -> ft.Container:
@@ -200,7 +232,9 @@ def primary_button(label: str, on_click) -> ft.FilledButton:
             overlay_color=ft.Colors.with_opacity(0.12, CARD),
             shape=ft.RoundedRectangleBorder(radius=12),
             padding=ft.Padding.symmetric(horizontal=24),
-            text_style=ft.TextStyle(font_family=font_for(ft.FontWeight.W_600), size=16, weight=ft.FontWeight.W_600),
+            text_style=ft.TextStyle(font_family=font_for(ft.FontWeight.W_600), font_family_fallback=georgian_for(ft.FontWeight.W_600),
+                size=16, weight=ft.FontWeight.W_600,
+            ),
         ),
     )
 
@@ -218,8 +252,8 @@ def input_field(label: str, value: str = "", suffix: str | None = None, width: f
             ft.ControlState.FOCUSED: ft.OutlineInputBorder(side=ft.BorderSide(1.5, FOREST), border_radius=12),
             ft.ControlState.DEFAULT: ft.OutlineInputBorder(side=ft.BorderSide(1, LINE), border_radius=12),
         },
-        text_style=ft.TextStyle(font_family=FONT, size=16, color=INK),
-        label_style=ft.TextStyle(font_family=FONT, color=MUTED),
+        text_style=ft.TextStyle(font_family=FONT, font_family_fallback=[GEORGIAN], size=16, color=INK),
+        label_style=ft.TextStyle(font_family=FONT, font_family_fallback=[GEORGIAN], color=MUTED),
         **kwargs,
     )
 
@@ -239,7 +273,9 @@ def choice(options: list[tuple[str, str]], selected: str, on_change, width: floa
             shape=ft.RoundedRectangleBorder(radius=12),
             padding=ft.Padding.symmetric(horizontal=0),
             visual_density=ft.VisualDensity.COMPACT,
-            text_style=ft.TextStyle(font_family=font_for(ft.FontWeight.W_600), size=14, weight=ft.FontWeight.W_600),
+            text_style=ft.TextStyle(font_family=font_for(ft.FontWeight.W_600), font_family_fallback=georgian_for(ft.FontWeight.W_600),
+                size=14, weight=ft.FontWeight.W_600,
+            ),
         ),
     )
 
@@ -261,13 +297,13 @@ def danger_label(danger: float) -> str:
 # --- Forest grids drawn with icons ------------------------------------------
 
 
-def forest_symbol(symbol: str, size: int) -> ft.Control | None:
+def forest_symbol(symbol: str, size: int, shade: int = 0) -> ft.Control | None:
     if symbol == TREE:
-        return ft.Icon(ft.Icons.PARK, color=FOREST, size=size * 0.82)
+        return ft.Icon(ft.Icons.PARK, color=TREE_SHADES[shade % len(TREE_SHADES)], size=size * 0.82)
     if symbol == FIRE:
-        return ft.Icon(ft.Icons.LOCAL_FIRE_DEPARTMENT, color=FLAME, size=size * 0.82)
+        return ft.Icon(ft.Icons.LOCAL_FIRE_DEPARTMENT, color=BURNING, size=size * 0.86)
     if symbol == ASH:
-        return ft.Icon(ft.Icons.PARK, color=BURNED, size=size * 0.82)  # burned tree
+        return ft.Icon(ft.Icons.PARK, color=BURNED, size=size * 0.82)  # charred tree
     if symbol == GLASS:
         return image("glass_icon.png", size * 0.5, size * 0.72)
     if symbol == FLAMMABLE:
@@ -286,16 +322,78 @@ def forest_grid(rows: int, cols: int, size: int) -> tuple[ft.Control, list[list[
 
 
 def paint_forest(cells: list[list[ft.Container]], grid: list[list[str]], size: int):
-    for row_cells, row in zip(cells, grid):
-        for cell, symbol in zip(row_cells, row):
+    for r, (row_cells, row) in enumerate(zip(cells, grid)):
+        for c, (cell, symbol) in enumerate(zip(row_cells, row)):
             if cell.data != symbol:  # only rebuild cells that changed
                 cell.data = symbol
-                cell.content = forest_symbol(symbol, size)
+                cell.content = forest_symbol(symbol, size, shade=(r * 7 + c * 3 + r * c) % 5)
 
 
 # ---------------------------------------------------------------------------
 # App state: data lives here, screens draw themselves from it
 # ---------------------------------------------------------------------------
+
+
+LOADER_BG = "#DCEAF6"  # same light blue as the app icon and the phone's splash screen
+
+
+class LoadingScreen:
+    """Loading, step 3 (steps 1 and 2 are the phone's splash and Flet's startup screen, set in
+    pyproject.toml): the app's artwork, name and a progress bar over the app, on the same blue,
+    until the first weather arrives. Then it fades into the Home screen."""
+
+    MIN_SECONDS = 1.2  # long enough to read, so it doesn't just flash
+
+    def __init__(self, app: "App"):
+        self.app = app
+        t = app.t
+        self.shown_at = asyncio.get_event_loop().time()
+        self.done = False
+        self.art = ft.Container(
+            image("splash.png", 220),
+            scale=1.0,
+            animate_scale=ft.Animation(1100, ft.AnimationCurve.EASE_IN_OUT),
+        )
+        self.control = ft.Container(
+            left=0, top=0, right=0, bottom=0,
+            bgcolor=LOADER_BG,
+            alignment=ft.Alignment.CENTER,
+            opacity=1.0,
+            animate_opacity=ft.Animation(450, ft.AnimationCurve.EASE_OUT),
+            content=ft.Column(
+                [
+                    self.art,
+                    text("Heat-Seeker", size=28, weight=ft.FontWeight.W_700),
+                    text(t("loading.tagline"), size=14.5, color=MUTED),
+                    ft.Container(height=26),
+                    ft.ProgressBar(width=160, bar_height=4, border_radius=2, color=FOREST, bgcolor="#C3D7EA"),
+                    ft.Container(height=10),
+                    text(t("loading.weather", city=app.city_name()), size=13, color=MUTED),
+                ],
+                spacing=4,
+                tight=True,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+        )
+
+    async def pulse(self):
+        """Let the artwork gently breathe while waiting."""
+        while not self.done:
+            self.art.scale = 1.06 if self.art.scale == 1.0 else 1.0
+            self.app.page.update()
+            await asyncio.sleep(1.1)
+
+    async def finish(self):
+        elapsed = asyncio.get_event_loop().time() - self.shown_at
+        if elapsed < self.MIN_SECONDS:
+            await asyncio.sleep(self.MIN_SECONDS - elapsed)
+        self.done = True
+        self.control.opacity = 0
+        self.app.page.update()
+        await asyncio.sleep(0.5)
+        if self.control in self.app.page.overlay:
+            self.app.page.overlay.remove(self.control)
+        self.app.page.update()
 
 
 class App:
@@ -323,6 +421,25 @@ class App:
         self._queued = False
         self._loading_fires = False
         self.views: "Views | None" = None
+        self.prefs = ft.SharedPreferences()  # remembers language and unit between launches
+        self.loader: "LoadingScreen | None" = None  # shown until the first weather arrives
+
+    # --- Saved settings ---------------------------------------------------------
+    async def load_settings(self):
+        try:
+            lang, unit = await self.prefs.get("lang"), await self.prefs.get("unit")
+        except Exception:
+            return  # storage unavailable: keep the defaults
+        if lang in LANGUAGES:
+            self.lang = lang
+        if unit in ("C", "F"):
+            self.unit = unit
+
+    async def save_setting(self, key: str, value: str):
+        try:
+            await self.prefs.set(key, value)
+        except Exception:
+            pass  # not being able to save a preference shouldn't break the app
 
     # --- Language helpers ----------------------------------------------------
     def t(self, key: str, **fields) -> str:
@@ -370,12 +487,14 @@ class App:
         if lang == self.lang:
             return
         self.lang = lang
+        self.page.run_task(self.save_setting, "lang", lang)
         self.page.pop_dialog()
         self.build()
         self.page.show_dialog(settings_sheet(self))  # reopen so the switch is visible in the new language
 
     def set_unit(self, unit: str):
         self.unit = unit
+        self.page.run_task(self.save_setting, "unit", unit)
         self.views.weather.render()
         self.views.prediction.render()
         self.page.update()
@@ -403,11 +522,24 @@ class App:
             self.prediction_status = "error"
             self.views.render_all()
             self.page.update()
+            self._hide_loader()
             return
         self.weather, self.weather_status = w, "ready"
         self.views.weather.render()
         self.page.update()
+        self._hide_loader()
         await self.run_prediction()
+
+    def show_loader(self):
+        self.loader = LoadingScreen(self)
+        self.page.overlay.append(self.loader.control)
+        self.page.update()
+        self.page.run_task(self.loader.pulse)
+
+    def _hide_loader(self):
+        if self.loader:
+            loader, self.loader = self.loader, None
+            self.page.run_task(loader.finish)
 
     async def refresh_forever(self):
         """Fetch the live weather again every 15 minutes; the prediction follows it."""
@@ -468,7 +600,7 @@ class App:
         groups = self.fires["groups"]
         history: dict[str, list[dict]] = {}  # earlier detections around each industrial site
         # Test fires already carry an address, so they skip the OpenStreetMap look-up
-        located = iter(detections) if Testing.TESTING else iter_fires_in_georgia(detections)
+        located = iter(detections) if Testing.TESTING else iter_fires_in_georgia(detections, self.lang)
         while True:
             try:
                 fire = await asyncio.to_thread(next, located, None)
@@ -489,6 +621,7 @@ class App:
                     group["fire"] = fire
             self._render_fires()
         self.fires["status"] = "done"
+        self.fires["checked"] = datetime.now(GEORGIA_TZ)
         self._render_fires()
 
     async def _industrial_heat(self, fire: dict, detections: list[dict], history: dict) -> dict | None:
@@ -554,12 +687,12 @@ def metric_label(value: str) -> ft.Text:
     return text(value, size=12, color=MUTED, weight=ft.FontWeight.W_500)
 
 
-def metric(icon: ft.IconData, label: str | ft.Text, value: ft.Text) -> ft.Control:
-    """One light card in the Humidity / Wind / Clouds row: icon, value, label."""
+def metric(icon: ft.IconData, label: str | ft.Text, value: ft.Text, color: str = MUTED, tint: str = PANEL) -> ft.Control:
+    """One light card in the Humidity / Wind / Clouds row: coloured icon, value, label."""
     return card(
         ft.Column(
             [
-                ft.Icon(icon, color=MUTED, size=18),
+                icon_badge(ft.Icon(icon, color=color, size=16), tint, size=30),
                 ft.Container(height=6),
                 value,
                 label if isinstance(label, ft.Text) else metric_label(label),
@@ -600,7 +733,7 @@ def weather_picture(w: dict) -> ft.Control:
     return image(weather_icon_name(w), 72)
 
 
-SCALE_WIDTH = WINDOW_WIDTH - 2 * PAGE_PADDING - 26  # content width inside the window frame and scrollbar
+SCALE_WIDTH = 284  # fits inside the weather panel on phones as narrow as 360 dp
 MARKER = 24  # 12px radius
 THUMB_SHADOW = [
     ft.BoxShadow(blur_radius=6, offset=ft.Offset(0, 2), color=ft.Colors.with_opacity(0.18, "#000000")),
@@ -639,12 +772,15 @@ class WeatherPanel:
         self.degrees = text("–", size=60, weight=ft.FontWeight.W_700, style=ft.TextStyle(letter_spacing=-0.5, height=1.05))
         self.picture = ft.Container(width=76, height=72, alignment=ft.Alignment.CENTER)
         self.feels = text("", size=15, color=MUTED)
+        self.heat_label = text("", size=15, weight=ft.FontWeight.W_600)
+        self.heat_pill = pill(self.heat_label, FOREST, MINT, ft.CupertinoIcons.THERMOMETER)
+        self.heat_pill.visible = False
         self.marker = ft.Container(
             width=MARKER, height=MARKER, border_radius=MARKER / 2, bgcolor=FOREST, border=ft.Border.all(4, CARD),
             shadow=THUMB_SHADOW, left=0, top=0, visible=False,
         )
         track = ft.Container(
-            width=SCALE_WIDTH, height=6, top=(MARKER - 6) / 2, border_radius=3,
+            width=SCALE_WIDTH, height=8, top=(MARKER - 8) / 2, border_radius=4,
             gradient=ft.LinearGradient(begin=ft.Alignment.CENTER_LEFT, end=ft.Alignment.CENTER_RIGHT, colors=RISK_GRADIENT),
         )
         meter = ft.Column(
@@ -667,7 +803,7 @@ class WeatherPanel:
         self.updated = text("", size=12.5, color=FAINT)
 
         gap = lambda h: ft.Container(height=h)  # noqa: E731
-        self.control = ft.Column(
+        weather = ft.Column(
             [
                 location,
                 gap(4),
@@ -677,16 +813,18 @@ class WeatherPanel:
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     spacing=16,
                 ),
-                gap(4),
+                gap(6),
+                self.heat_pill,
+                gap(8),
                 self.feels,
                 gap(20),
                 meter,
                 gap(20),
                 ft.Row(
                     [
-                        metric(ft.CupertinoIcons.DROP, t("weather.humidity"), self.humidity),
-                        metric(ft.CupertinoIcons.WIND, self.wind_label, self.wind),
-                        metric(ft.CupertinoIcons.CLOUD, t("weather.clouds"), self.clouds),
+                        metric(ft.CupertinoIcons.DROP, t("weather.humidity"), self.humidity, "#2563EB", "#DBEAFE"),
+                        metric(ft.CupertinoIcons.WIND, self.wind_label, self.wind, "#0D9488", "#CCFBF1"),
+                        metric(ft.CupertinoIcons.CLOUD, t("weather.clouds"), self.clouds, "#7C3AED", "#EDE9FE"),
                     ],
                     spacing=10,
                     vertical_alignment=ft.CrossAxisAlignment.START,
@@ -696,6 +834,14 @@ class WeatherPanel:
             ],
             spacing=0,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+        self.control = ft.Container(
+            weather,
+            border_radius=24,
+            padding=ft.Padding.only(left=12, right=12, top=10, bottom=14),
+            gradient=ft.LinearGradient(
+                begin=ft.Alignment.TOP_CENTER, end=ft.Alignment.BOTTOM_CENTER, colors=["#DDEBF9", "#EEF5FC"],
+            ),
         )
 
     def render(self):
@@ -711,12 +857,12 @@ class WeatherPanel:
             return
         risk = heat_risk_checker(w["temperature_2m"], w["relative_humidity_2m"])
         self.degrees.value = f"{to_unit(w['temperature_2m'], app.unit):.0f}°"
-        self.feels.value = ""
-        self.feels.spans = rich(
-            t("weather.feels", temp=f"{to_unit(risk['hi_c'], app.unit):.0f}", level=t(f"risk.{risk['level']}")),
-            bold_color=RISK_COLORS[risk["level"]],
-            bold_weight=ft.FontWeight.W_500,
-        )
+        self.feels.value = t("weather.feels_only", temp=f"{to_unit(risk['hi_c'], app.unit):.0f}")
+        self.heat_label.value = t(f"risk.{risk['level']}")
+        self.heat_label.color = RISK_COLORS[risk["level"]]
+        self.heat_pill.content.controls[0].color = RISK_COLORS[risk["level"]]
+        self.heat_pill.bgcolor = HEAT_TINTS[risk["level"]]
+        self.heat_pill.visible = True
         self.marker.left = min(max(scale_position(risk["hi_f"]) * SCALE_WIDTH - MARKER / 2, 0), SCALE_WIDTH - MARKER)
         self.marker.visible = True
         self.marker.bgcolor = RISK_THUMB[risk["level"]]
@@ -745,6 +891,7 @@ def shortcut(badge: ft.Container, heading: ft.Text, detail: ft.Text, on_click) -
         ),
         on_click=on_click,
         ink=True,
+        padding=ft.Padding.symmetric(horizontal=16, vertical=18),
     )
 
 
@@ -776,13 +923,17 @@ class Shortcuts:
     def render(self):
         app, t = self.app, self.app.t
         status = app.prediction_status
+        self.danger_title.spans = []
         if status == "error":
             self.danger_title.value = t("home.danger_unavailable")
             self.danger_detail.value = t("home.danger_retry")
             self.shield.color, self.danger_badge.bgcolor = MUTED, PANEL
         elif status == "ready" and app.prediction:
             level = danger_label(app.prediction["result"]["danger"])
-            self.danger_title.value = t("home.danger_today", level=t(f"danger.{level}"))
+            self.danger_title.value = ""
+            self.danger_title.spans = rich(
+                t("home.danger_today", level=t(f"danger.{level}")), bold_color=DANGER_COLORS[level][0]
+            )
             self.danger_detail.value = t(f"advice.{level}")
             self.shield.color, self.danger_badge.bgcolor = DANGER_COLORS[level]
         else:
@@ -833,24 +984,27 @@ def heat_calculator(app: App) -> ft.Control:
     t = app.t
     temp_field = input_field(t("calc.temperature"), "35", "°C", expand=True, keyboard_type=ft.KeyboardType.NUMBER)
     rh_field = input_field(t("calc.humidity"), "60", "%", expand=True, keyboard_type=ft.KeyboardType.NUMBER)
-    message = text("", size=14, color=FLAME)
-    result = text("", size=24, weight=ft.FontWeight.W_600)
-    level = text("", size=15, weight=ft.FontWeight.W_500)
+    # hidden until there's something to show, so the card has no empty space at the bottom
+    message = text("", size=14, color=FLAME, visible=False)
+    result = text("", size=24, weight=ft.FontWeight.W_600, visible=False)
+    level = text("", size=15, weight=ft.FontWeight.W_500, visible=False)
 
     def on_check(e):
         try:
             risk = heat_risk_checker(float(temp_field.value), float(rh_field.value))
         except ValueError:
-            message.value = t("calc.invalid")
+            message.value, message.visible = t("calc.invalid"), True
+            result.visible = level.visible = False
             app.page.update()
             return
-        message.value = ""
+        message.visible = False
+        result.visible = level.visible = True
         result.value = f"{risk['hi_c']:.0f}°C  /  {risk['hi_f']:.0f}°F"
         level.value = t(f"risk.{risk['level']}")
         level.color = RISK_COLORS[risk["level"]]
         app.page.update()
 
-    return ft.Column(
+    return card(ft.Column(
         [
             section_title(t("calc.title")),
             intro(t("calc.intro")),
@@ -864,7 +1018,7 @@ def heat_calculator(app: App) -> ft.Control:
         ],
         spacing=8,
         horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
-    )
+    ), bgcolor="#FFF8EB", padding=ft.Padding.symmetric(horizontal=16, vertical=20))
 
 
 # ---------------------------------------------------------------------------
@@ -872,20 +1026,39 @@ def heat_calculator(app: App) -> ft.Control:
 # ---------------------------------------------------------------------------
 
 
+def case_level(result: dict) -> str:
+    """Risk step for one forest case, from the share of trees that burn on average."""
+    percent = result["avg_percent"]
+    if percent < 5:
+        return "Low"
+    if percent < 20:
+        return "Moderate"
+    if percent < 45:
+        return "High"
+    return "Extreme"
+
+
 def scenario_card(app: App, result: dict, selected: bool, on_click) -> ft.Control:
-    """Selected: primary green border on soft green. Unselected: white with a light border."""
+    """All three cards share a border and fill so they read as one set; the selected card takes
+    its risk colour, and the percentage is coloured once a case is more than low risk."""
+    level = case_level(result)
+    color, tint = DANGER_COLORS[level]
     return ft.Container(
         expand=True,
         on_click=on_click,
         ink=True,
-        bgcolor=MINT if selected else CARD,
+        bgcolor=tint if selected else CASE_TINTS[result["key"]],
         border_radius=16,
-        border=ft.Border.all(1.5, FOREST) if selected else ft.Border.all(1, LINE),
-        padding=ft.Padding.symmetric(horizontal=4, vertical=16),
+        border=ft.Border.all(2, color) if selected else ft.Border.all(1, "#D1D5DB"),
+        shadow=SHADOW if selected else None,
+        padding=ft.Padding.symmetric(horizontal=4, vertical=18),
         content=ft.Column(
             [
                 ft.Container(image(CASE_ICONS[result["key"]], 40, 40), height=44, alignment=ft.Alignment.CENTER),
-                text(f"{result['avg_percent']:.0f}%", size=24, weight=ft.FontWeight.W_600),
+                text(
+                    f"{result['avg_percent']:.0f}%", size=24, weight=ft.FontWeight.W_600,
+                    color=INK if level == "Low" else color,
+                ),
                 ft.Container(
                     text(app.t(f"case.{result['key']}"), size=13, color=INK if selected else MUTED, weight=ft.FontWeight.W_500),
                     height=36, alignment=ft.Alignment.TOP_CENTER,
@@ -897,6 +1070,22 @@ def scenario_card(app: App, result: dict, selected: bool, on_click) -> ft.Contro
     )
 
 
+def forest_legend(app: App, case: str) -> list[ft.Control]:
+    """What each symbol in the forest grid means, for the case being shown."""
+    t = app.t
+    entry = lambda symbol, key: ft.Row(  # noqa: E731
+        [ft.Container(forest_symbol(symbol, 18), width=18, height=18, alignment=ft.Alignment.CENTER),
+         text(t(key), size=12, color=MUTED)],
+        spacing=4, tight=True,
+    )
+    items = [entry(TREE, "legend.tree"), entry(FIRE, "legend.fire"), entry(ASH, "legend.burned")]
+    if case == "glass":
+        items.append(entry(GLASS, "legend.glass"))
+    if case == "flammable":
+        items.append(entry(FLAMMABLE, "legend.litter"))
+    return items
+
+
 class PredictionView:
     """Fire danger for the chosen place, worked out from live weather, plus Predict fire."""
 
@@ -905,16 +1094,30 @@ class PredictionView:
         t = app.t
         self.intro = intro("")
         self.flame = ft.Icon(ft.CupertinoIcons.FLAME, color=FOREST, size=22)
-        self.danger = text("", size=17, weight=ft.FontWeight.W_600)
+        self.danger = text("", size=17, weight=ft.FontWeight.W_600)  # status while there's no level yet
+        self.status_row = ft.Row([self.flame, self.danger], alignment=ft.MainAxisAlignment.CENTER, spacing=8, wrap=True)
+        self.level_caption = text(t("risk.danger_label"), size=13, color=MUTED, weight=ft.FontWeight.W_500)
+        self.level_text = text("", size=20, color=CARD, weight=ft.FontWeight.W_700)
+        self.level_pill = ft.Container(
+            ft.Row([ft.Icon(ft.CupertinoIcons.FLAME_FILL, color=CARD, size=20), self.level_text], spacing=8, tight=True),
+            border_radius=999,
+            padding=ft.Padding.symmetric(horizontal=20, vertical=9),
+        )
+        self.level_block = ft.Column(
+            [self.level_caption, self.level_pill], spacing=6, tight=True,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER, visible=False,
+        )
         self.conditions = text("", size=13.5, color=MUTED)
         self.explain = text("", size=14, color=INK)
         self.panel = ft.Container(
             bgcolor=MINT,
             border_radius=16,
-            padding=ft.Padding.symmetric(horizontal=18, vertical=16),
+            padding=ft.Padding.symmetric(horizontal=18, vertical=18),
             content=ft.Column(
                 [
-                    ft.Row([self.flame, self.danger], alignment=ft.MainAxisAlignment.CENTER, spacing=8, wrap=True),
+                    self.status_row,
+                    self.level_block,
+                    ft.Container(height=4),
                     self.conditions,
                     self.explain,
                 ],
@@ -927,11 +1130,12 @@ class PredictionView:
         # Detail for the selected case: built once, so Predict fire can animate the same grid
         self.case_title = section_title("")
         self.case_about = text("", size=14.5, color=MUTED)
-        self.callout = ft.Text("", size=17, color=INK, font_family=FONT, text_align=ft.TextAlign.CENTER)
+        self.callout = ft.Text("", size=17, color=INK, font_family=FONT, font_family_fallback=[GEORGIAN], text_align=ft.TextAlign.CENTER)
         self.callout_detail = text("", size=13.5, color=MUTED)
         grid, self.cells = forest_grid(GRID_SIZE, GRID_SIZE, SAMPLE_CELL)
+        self.legend = ft.Row(spacing=14, run_spacing=6, wrap=True, alignment=ft.MainAxisAlignment.CENTER)
         self.predict_button = primary_button(t("predict.button"), self.predict)
-        self.outcome = ft.Text("", size=14, color=INK, font_family=FONT, text_align=ft.TextAlign.CENTER)
+        self.outcome = ft.Text("", size=14, color=INK, font_family=FONT, font_family_fallback=[GEORGIAN], text_align=ft.TextAlign.CENTER)
         self.detail = ft.Column(
             [
                 ft.Container(height=16),
@@ -944,6 +1148,7 @@ class PredictionView:
                             self.callout,
                             self.callout_detail,
                             ft.Container(grid, margin=ft.Margin.only(top=10), alignment=ft.Alignment.CENTER),
+                            ft.Container(self.legend, margin=ft.Margin.only(top=10)),
                         ],
                         spacing=4,
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -1022,6 +1227,7 @@ class PredictionView:
         city = app.city_name()
         self.intro.value = t("risk.intro", city=city, city_of=georgian_genitive(city))
         self.panel.bgcolor, self.flame.color = MINT, FOREST
+        self.status_row.visible, self.level_block.visible = True, False
         self.predict_button.disabled = app.animating
         self.predict_button.content = t("predict.running") if app.animating else t("predict.button")
 
@@ -1050,7 +1256,9 @@ class PredictionView:
         if app.prediction_status == "running":
             self.danger.value, self.danger.color = t("risk.working"), INK
         else:
-            self.danger.value, self.danger.color = t("risk.danger", level=t(f"danger.{level}")), color
+            self.status_row.visible, self.level_block.visible = False, True
+            self.level_text.value = t(f"danger.{level}")
+            self.level_pill.bgcolor = color
         self.conditions.value = t(
             "risk.conditions",
             temp=f"{to_unit(w['temperature_2m'], app.unit):.0f}", unit=app.unit,
@@ -1067,6 +1275,7 @@ class PredictionView:
         self.detail.visible = True
         self.case_title.value = t(f"case.{result['key']}")
         self.case_about.value = t(f"case.{result['key']}.about")
+        self.legend.controls = forest_legend(app, result["key"])
         self.callout.spans = rich(t("risk.callout", burned=f"{result['avg_burned']:.0f}", total=result["total_trees"]))
         self.callout_detail.value = t(
             "risk.callout_detail", chance=f"{result['fire_chance']:.0f}", worst=result["max_burned"]
@@ -1116,10 +1325,11 @@ MAP_CITIES = [
 CITY_LABEL_WIDTH = 72
 
 # Map colours: flat, light land on a white card, soft blue sea
-MAP_SEA = "#DCEAF6"
-MAP_LAND = "#FAFAFA"
-MAP_BORDER = "#374151"
-MAP_RIVER = "#86B4DC"
+MAP_BG = "#EEF1F4"  # neighbouring countries: grey, so Georgia's white land stands out
+MAP_SEA = "#C9DFF2"
+MAP_LAND = "#FFFFFF"
+MAP_BORDER = "#1F2937"
+MAP_RIVER = "#4F8FCB"
 RELIEF_INK = "#1F2937"
 
 # Equirectangular projection fitted to Georgia's outline; longitude is squeezed by
@@ -1193,7 +1403,7 @@ def _relief() -> list[tuple[float, float, float, float, float]]:
         n = math.sqrt(dzdx * dzdx + dzdy * dzdy + 1)
         lit = (-dzdx * light[0] - dzdy * light[1] + light[2]) / n
         # shadowed slopes darken; higher ground gets a faint grey tint so ranges read at a glance
-        alpha = min(max((0.71 - lit) * 0.38, 0), 0.17) + min(max(h, 0) / 4000, 1) * 0.09
+        alpha = min(max((0.71 - lit) * 0.55, 0), 0.24) + min(max(h, 0) / 4000, 1) * 0.12
         alpha = round(alpha / 0.012) * 0.012
         if alpha >= 0.012:
             rows.setdefault(lat, []).append((lon, alpha))
@@ -1251,10 +1461,10 @@ def georgia_map(app: App) -> ft.Stack:
         ],
     ]
     for river in RIVERS:
-        width = 1.4 if river["en"] in MAJOR_RIVERS else 0.9
+        width = 1.7 if river["en"] in MAJOR_RIVERS else 1.1
         for line in river["lines"]:
             shapes.append(cv.Path(_path([map_xy(lat, lon) for lon, lat in line]), paint=stroke(MAP_RIVER, width)))
-    shapes.append(cv.Path(land, paint=stroke(MAP_BORDER, 1.3)))
+    shapes.append(cv.Path(land, paint=stroke(MAP_BORDER, 1.5)))
 
     labels = []
     for name, lat, lon, side, nudge in MAP_CITIES:
@@ -1266,13 +1476,14 @@ def georgia_map(app: App) -> ft.Stack:
         labels.append(
             ft.Text(
                 app.city_name(name), size=12, color=INK, weight=ft.FontWeight.W_500,
-                font_family=font_for(ft.FontWeight.W_500),
+                font_family=font_for(ft.FontWeight.W_500), font_family_fallback=georgian_for(ft.FontWeight.W_500),
                 left=left, top=y - 9 - nudge, width=CITY_LABEL_WIDTH, text_align=align,
             )
         )
     country = ft.Text(
         app.t("map.country"), size=15, color=MAP_BORDER, weight=ft.FontWeight.W_600,
-        font_family=font_for(ft.FontWeight.W_600), style=ft.TextStyle(letter_spacing=1.2),
+        font_family=font_for(ft.FontWeight.W_600), font_family_fallback=georgian_for(ft.FontWeight.W_600),
+        style=ft.TextStyle(letter_spacing=1.2),
         right=16, top=14,
     )
     return ft.Stack(
@@ -1354,17 +1565,24 @@ def fire_card(app: App, fire: dict, detections: int) -> ft.Control:
     if detections > 1:
         details += t("fires.seen", count=detections)
     left = lambda value, **kw: text(value, text_align=ft.TextAlign.LEFT, **kw)  # noqa: E731
+    tag = ft.Container(
+        text(t("fires.active_label"), size=11.5, color="#B91C1C", weight=ft.FontWeight.W_600),
+        bgcolor=FLAME_TINT,
+        border_radius=999,
+        padding=ft.Padding.symmetric(horizontal=8, vertical=2),
+    )
     return card(
         ft.Row(
             [
-                icon_badge(ft.Icon(ft.CupertinoIcons.FLAME, color=FLAME, size=21), FLAME_TINT),
+                icon_badge(ft.Icon(ft.CupertinoIcons.FLAME_FILL, color=FLAME, size=21), FLAME_TINT),
                 ft.Column(
                     [
+                        ft.Row([tag], spacing=0),
                         left(place_name(fire["address"]), size=15.5, weight=ft.FontWeight.W_600),
                         left(app.when(detected_at(fire)), size=13.5, color=MUTED),
                         left(details, size=12.5, color=FAINT),
                     ],
-                    spacing=1,
+                    spacing=2,
                     expand=True,
                 ),
                 ft.IconButton(
@@ -1375,6 +1593,23 @@ def fire_card(app: App, fire: dict, detections: int) -> ft.Control:
             spacing=14,
         ),
         padding=ft.Padding.only(left=16, right=6, top=14, bottom=14),
+    )
+
+
+def map_legend(app: App) -> ft.Control:
+    """Small key under the map: fire pin, industrial heat square, city dot."""
+    t = app.t
+    entry = lambda mark, key: ft.Row([mark, text(t(key), size=12, color=MUTED)], spacing=5, tight=True)  # noqa: E731
+    return ft.Row(
+        [
+            entry(ft.Icon(ft.Icons.LOCATION_ON, color=FLAME, size=16), "map.legend_fire"),
+            entry(ft.Container(width=10, height=10, border_radius=2.5, bgcolor="#4B5563"), "map.legend_industrial"),
+            entry(ft.Container(width=8, height=8, border_radius=4, bgcolor=INK), "map.legend_city"),
+        ],
+        spacing=14,
+        run_spacing=4,
+        wrap=True,
+        alignment=ft.MainAxisAlignment.CENTER,
     )
 
 
@@ -1424,10 +1659,19 @@ class FiresView:
         self.base_layers = list(self.map.controls)
         self.rings: list[ft.Container] = []
         self.status = text("", size=15)
+        self.updated = text("", size=12.5, color=FAINT)
         self.note = text("", size=13.5, color=MUTED, visible=False)
         self.status_icon = ft.Icon(ft.CupertinoIcons.ANTENNA_RADIOWAVES_LEFT_RIGHT, color=MUTED, size=22)
         self.status_badge = icon_badge(self.status_icon, PANEL, 48)
         self.list = ft.Column(spacing=12)
+        self.status_card = card(
+            ft.Column(
+                [self.status_badge, self.status, self.note],
+                spacing=10,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            padding=ft.Padding.symmetric(horizontal=20, vertical=20),
+        )
         self.refresh = ft.IconButton(
             ft.CupertinoIcons.ARROW_CLOCKWISE, icon_color=MUTED, icon_size=20, tooltip=t("fires.check_again"),
             on_click=lambda e: app.page.run_task(app.load_fires),
@@ -1439,16 +1683,14 @@ class FiresView:
                     spacing=0,
                 ),
                 intro(t("fires.intro", days=FIRE_DAYS)),
+                self.updated,
                 ft.Container(height=8),
-                card(self.map, padding=0, alignment=ft.Alignment.CENTER, clip_behavior=ft.ClipBehavior.ANTI_ALIAS),
                 card(
-                    ft.Column(
-                        [self.status_badge, self.status, self.note],
-                        spacing=10,
-                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    ),
-                    padding=ft.Padding.symmetric(horizontal=20, vertical=20),
+                    ft.Column([self.map, map_legend(app)], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    padding=ft.Padding.only(bottom=12), bgcolor=MAP_BG,
+                    alignment=ft.Alignment.CENTER, clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                 ),
+                self.status_card,
                 self.list,
                 ft.Container(text(t("fires.credits"), size=11.5, color=FAINT), margin=ft.Margin.only(top=12)),
             ],
@@ -1486,6 +1728,9 @@ class FiresView:
             industrial_card(app, g) for g in newest(heat_groups)
         ]
 
+        checked = fires.get("checked")
+        self.updated.value = t("fires.updated", time=f"{checked:%H:%M}") if checked else ""
+        self.updated.visible = bool(checked)
         self.note.visible = bool(heat_groups) and status not in ("loading", "nasa_error")
         if len(heat_groups) == 1:
             self.note.value = t("fires.industrial_one")
@@ -1493,11 +1738,11 @@ class FiresView:
             self.note.value = t("fires.industrial_many", count=len(heat_groups))
 
         if groups:
-            self.status_icon.color, self.status_badge.bgcolor = FLAME, FLAME_TINT
+            self.status_icon.color, self.status_badge.bgcolor, self.status_card.bgcolor = FLAME, CARD, "#FEF2F2"
         elif status == "done":
-            self.status_icon.color, self.status_badge.bgcolor = FOREST, MINT
+            self.status_icon.color, self.status_badge.bgcolor, self.status_card.bgcolor = FOREST, CARD, "#F0FAF4"
         else:
-            self.status_icon.color, self.status_badge.bgcolor = MUTED, PANEL
+            self.status_icon.color, self.status_badge.bgcolor, self.status_card.bgcolor = MUTED, PANEL, CARD
         if status == "loading":
             self.status.value = t("fires.getting")
         elif status == "nasa_error":
@@ -1555,6 +1800,8 @@ def top_bar(app: App) -> ft.Control:
     return ft.Container(
         height=56,
         padding=ft.Padding.only(left=PAGE_PADDING, right=8),
+        bgcolor=CANVAS,
+        border=ft.Border.only(bottom=ft.BorderSide(1, LINE)),
         content=ft.Row(
             [
                 ft.Row(
@@ -1577,7 +1824,7 @@ def top_bar(app: App) -> ft.Control:
 
 
 class BottomNav:
-    """Line icon + label per screen. Active: filled icon on a soft green pill, green label."""
+    """Line icon + label per screen. Active: green line on top, filled icon on a soft green pill, green label."""
 
     ITEMS = [
         (ft.CupertinoIcons.HOUSE, ft.CupertinoIcons.HOUSE_FILL, "nav.home"),
@@ -1586,11 +1833,13 @@ class BottomNav:
     ]
 
     def __init__(self, app: App):
-        self.icons, self.pills, self.labels = [], [], []
+        self.icons, self.pills, self.labels, self.lines = [], [], [], []
         items = []
         for index, (outlined, _, key) in enumerate(self.ITEMS):
             icon = ft.Icon(outlined, size=22)
             pill = ft.Container(icon, width=56, height=30, border_radius=15, alignment=ft.Alignment.CENTER)
+            line = ft.Container(width=40, height=3, border_radius=ft.BorderRadius.only(bottom_left=3, bottom_right=3))
+            self.lines.append(line)
             label = text(app.t(key), size=11.5, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS)
             self.icons.append(icon)
             self.pills.append(pill)
@@ -1598,10 +1847,11 @@ class BottomNav:
             items.append(
                 ft.Container(
                     expand=True,
+                    ink=True,
                     on_click=lambda e, i=index: app.go_to(i),
-                    alignment=ft.Alignment.CENTER,
+                    alignment=ft.Alignment.TOP_CENTER,  # the active line sits on the bar's top edge
                     content=ft.Column(
-                        [pill, label],
+                        [line, ft.Container(height=7), pill, label],
                         spacing=3,
                         tight=True,
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -1609,10 +1859,9 @@ class BottomNav:
                 )
             )
         self.control = ft.Container(
-            height=70,
+            height=72,
             bgcolor=CARD,
             border=ft.Border.only(top=ft.BorderSide(1, LINE)),
-            padding=ft.Padding.only(top=2),
             content=ft.Row(items, spacing=0, vertical_alignment=ft.CrossAxisAlignment.STRETCH),
         )
 
@@ -1622,6 +1871,7 @@ class BottomNav:
             self.icons[i].icon = filled if active else outlined
             self.icons[i].color = FOREST if active else FAINT
             self.pills[i].bgcolor = MINT if active else None
+            self.lines[i].bgcolor = FOREST if active else None
             weight = ft.FontWeight.W_600 if active else ft.FontWeight.W_500
             self.labels[i].weight, self.labels[i].font_family = weight, font_for(weight)
             self.labels[i].color = FOREST if active else MUTED
@@ -1653,7 +1903,18 @@ class Views:
             screen(self.prediction.control),
             screen(self.fires.control),
         ]
-        self.root = ft.Column([top_bar(app), *self.screens, self.nav.control], expand=True, spacing=0)
+        # On phones, keep the header below the status bar (clock, battery, notifications) and the
+        # tab bar above the gesture/navigation bar. Their backgrounds still run behind those bars,
+        # so there's no stray strip of another colour. On the PC the insets are zero.
+        header = ft.Container(
+            ft.SafeArea(top_bar(app), avoid_intrusions_bottom=False),
+            bgcolor=CANVAS,
+        )
+        tabs = ft.Container(
+            ft.SafeArea(self.nav.control, avoid_intrusions_top=False),
+            bgcolor=CARD,
+        )
+        self.root = ft.Column([header, *self.screens, tabs], expand=True, spacing=0)
 
     def show_screen(self, index: int):
         self.nav.select(index)
@@ -1804,7 +2065,14 @@ def settings_sheet(app: App) -> ft.BottomSheet:
 # ---------------------------------------------------------------------------
 
 
-def main(page: ft.Page):
+async def center_window(page: ft.Page):
+    try:
+        await page.window.center()
+    except Exception:
+        pass  # centring is only cosmetic; never let it surface as an error
+
+
+async def main(page: ft.Page):
     page.title = "Heat Seeker"
     page.padding = 0
     page.spacing = 0
@@ -1829,10 +2097,14 @@ def main(page: ft.Page):
     page.window.maximizable = False
     page.window.icon = str(APP_ICON)
     page.fonts = FONT_FILES
+    page.update()  # apply the window size and fonts now, before waiting for the saved settings
 
     app = App(page)
+    await app.load_settings()  # saved language and unit, before anything is drawn
+    app.show_loader()
     app.build()
-    page.run_task(page.window.center)
+    if page.platform and page.platform.is_desktop() and not page.web:
+        page.run_task(center_window, page)  # phones and browsers have no window to move
     page.run_task(app.refresh_weather)
     page.run_task(app.refresh_forever)
     page.run_task(app.load_fires)
@@ -1840,4 +2112,4 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.run(main, assets_dir="Images")
+    ft.run(main, assets_dir="assets")

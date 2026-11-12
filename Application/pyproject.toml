@@ -1,0 +1,56 @@
+# Settings for `flet build apk` (and other `flet build` targets).
+# Build from this folder:  flet build apk
+
+[project]
+name = "heat-seeker"
+version = "1.3.0"
+description = "Heat risk, fire risk and live fires for Georgia"
+requires-python = ">=3.12"
+# Only what the app needs on a phone (the requirements.txt one folder up is for the PC
+# and includes desktop-only packages such as PyQt5 that can't be built for Android).
+dependencies = [
+    "flet==1.1.2",
+    "requests==2.34.2",
+    "python-dotenv==1.2.4",
+    "truststore==0.10.5",
+]
+
+[tool.flet]
+org = "com.heatseeker"  # with the project name this gives the app id com.heatseeker.heat_seeker
+product = "Heat Seeker"  # name under the app icon
+company = "Heat Seeker"
+copyright = "Copyright (C) 2026 Heat Seeker"
+
+[tool.flet.app]
+# .env holds FIRMS_KEY; Flet leaves it out of the app by default, so the Fires screen
+# would have no NASA data. Note: anyone who unpacks the APK can read this key.
+include = [".env"]
+# Source sheets and the design mock-up aren't used by the app
+exclude = ["assets/Website_Design.png", "assets/weathers.png"]
+
+[tool.flet.android]
+adaptive_icon_background = "#DCEAF6"  # same light blue as assets/icon.png
+
+# Loading, step 1: the phone's own splash screen, shown the moment the app is tapped.
+# The picture is assets/splash.png (the sun-and-cloud artwork); the app is light-only,
+# so dark mode uses the same colour.
+[tool.flet.splash]
+color = "#DCEAF6"
+dark_color = "#DCEAF6"
+icon_background = "#DCEAF6"
+icon_dark_background = "#DCEAF6"
+
+# Loading, step 2: Flet's startup screen while Python unpacks and starts (a few seconds,
+# longest on the first launch). Step 3 is the loading screen inside the app (main.py).
+[tool.flet.boot_screen]
+name = "flet"
+
+[tool.flet.boot_screen.flet]
+theme_mode = "light"
+bgcolor_light = "#DCEAF6"
+spinner_color_light = "#1A7F4B"
+text_color_light = "#4B5563"
+spinner_size = 30
+prepare_message = "Preparing Heat Seeker…  ·  მზადდება…"
+startup_message = "Starting…  ·  იტვირთება…"
+fade_out_duration = 250

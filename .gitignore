@@ -1,0 +1,13 @@
+# Python's compiled cache and test cache (made automatically, never committed)
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Virtual environment
+env/
+
+# Secrets: Application/.env holds the NASA FIRMS key
+.env
+
+# Output of the Android build (contains the key, too)
+Application/build/

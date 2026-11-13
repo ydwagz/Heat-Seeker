@@ -8,7 +8,7 @@ from pathlib import Path
 import flet as ft
 import flet.canvas as cv
 
-from fire_sim import (
+from core.fire_sim import (
     ASH,
     FIRE,
     FLAMMABLE,
@@ -24,9 +24,10 @@ from fire_sim import (
     spread,
     start_fire,
 )
-from heat import fetch_current_weather, heat_risk_checker, search_places
-from NASA_FIRMS_API import DAYS as FIRE_DAYS
-from NASA_FIRMS_API import (
+from core import fwi
+from core.heat import fetch_current_weather, fetch_fire_weather, heat_risk_checker, search_places
+from core.nasa_firms import DAYS as FIRE_DAYS
+from core.nasa_firms import (
     MIN_DAYS_SEEN,
     days_seen,
     fetch_fires,
@@ -36,11 +37,20 @@ from NASA_FIRMS_API import (
     place_name,
 )
 import Testing
-from translations import CITY_NAMES, COMPASS, LANGUAGES, MONTHS, REGION_NAMES, georgian_genitive, translate
+from translations import (
+    CITY_NAMES,
+    COMPASS,
+    LANGUAGES,
+    MONTHS,
+    REGION_NAMES,
+    WEEKDAYS,
+    georgian_genitive,
+    translate,
+)
 
 APP_DIR = Path(__file__).parent
 IMAGES = APP_DIR / "assets"
-APP_ICON = IMAGES / "icon.ico"
+APP_ICON = IMAGES / "brand" / "icon.ico"
 
 WINDOW_WIDTH = 390
 WINDOW_HEIGHT = 844
@@ -119,16 +129,21 @@ HEAT_TINTS = {"Safe": MINT, "Caution": "#FEF9C3", "Extreme Caution": "#FFEDD5", 
 RISK_THUMB = {"Safe": "#22C55E", "Caution": "#84CC16", "Extreme Caution": "#EAB308", "Danger": "#F97316", "Extreme Danger": "#EF4444"}
 SCALE_MIN_F = 40
 
-# Fire danger levels from the prediction: (text colour, card tint). Soft green only when it's safe.
+# Fire danger classes of EFFIS (from the Fire Weather Index): (text colour, card tint), as a
+# traffic light anyone reads at a glance: green = safe, yellow = caution, red = danger, with the
+# red getting darker as the danger grows. "Low/Moderate/High/Extreme" also colour the forest cases.
 DANGER_COLORS = {
+    "Very low": (FOREST, MINT),
     "Low": (FOREST, MINT),
-    "Moderate": ("#A16207", "#FEF9C3"),
-    "High": ("#C2410C", "#FFEDD5"),
-    "Extreme": ("#B91C1C", FLAME_TINT),
+    "Moderate": ("#A16207", "#FEF3C7"),
+    "High": ("#DC2626", "#FEE2E2"),
+    "Very high": ("#B91C1C", "#FEE2E2"),
+    "Extreme": ("#7F1D1D", "#FECACA"),
 }
+SAFE_LEVELS = {"Very low", "Low"}
 
 # Prediction case icons, and a light tint for each case's card when it isn't selected
-CASE_ICONS = {"natural": "sun_icon.png", "glass": "glass_icon.png", "flammable": "flammable_litter_icon.png"}
+CASE_ICONS = {"natural": "forest/sun_icon.png", "glass": "forest/glass_icon.png", "flammable": "forest/flammable_litter_icon.png"}
 CASE_TINTS = {"natural": "#FFFBEB", "glass": "#EFF6FF", "flammable": "#FFF7ED"}
 
 # Built-in Georgian cities: (English name, lat, lon, English region)
@@ -180,7 +195,7 @@ def rich(template_text: str, bold_color: str | None = None, bold_weight=ft.FontW
 
 def title(value: str, lang: str = "en") -> ft.Text:
     # Georgian words are longer and its letters wider, so screen titles step down a size
-    return text(value, size=24 if lang == "en" else 21, weight=ft.FontWeight.W_600)
+    return text(value, size=28 if lang == "en" else 24, weight=ft.FontWeight.W_700)
 
 
 def section_title(value: str) -> ft.Text:
@@ -189,7 +204,7 @@ def section_title(value: str) -> ft.Text:
 
 def intro(value: str) -> ft.Text:
     """The line under a screen title that tells a new user what the screen is for."""
-    return text(value, size=14.5, color=MUTED)
+    return text(value, size=16, color=MUTED)
 
 
 def image(name: str, width: float, height: float | None = None) -> ft.Image:
@@ -284,16 +299,6 @@ def to_unit(celsius: float, unit: str) -> float:
     return celsius * 9 / 5 + 32 if unit == "F" else celsius
 
 
-def danger_label(danger: float) -> str:
-    if danger < 0.15:
-        return "Low"
-    if danger < 0.4:
-        return "Moderate"
-    if danger < 0.7:
-        return "High"
-    return "Extreme"
-
-
 # --- Forest grids drawn with icons ------------------------------------------
 
 
@@ -305,9 +310,9 @@ def forest_symbol(symbol: str, size: int, shade: int = 0) -> ft.Control | None:
     if symbol == ASH:
         return ft.Icon(ft.Icons.PARK, color=BURNED, size=size * 0.82)  # charred tree
     if symbol == GLASS:
-        return image("glass_icon.png", size * 0.5, size * 0.72)
+        return image("forest/glass_icon.png", size * 0.5, size * 0.72)
     if symbol == FLAMMABLE:
-        return image("flammable_litter_icon.png", size * 0.66, size * 0.74)
+        return image("forest/flammable_litter_icon.png", size * 0.66, size * 0.74)
     return None
 
 
@@ -332,6 +337,29 @@ def paint_forest(cells: list[list[ft.Container]], grid: list[list[str]], size: i
 # ---------------------------------------------------------------------------
 # App state: data lives here, screens draw themselves from it
 # ---------------------------------------------------------------------------
+
+
+async def with_retry(fetch, *args, attempts: int = 2, wait: float = 1.5):
+    """Run a blocking download in a worker thread, trying again once if it fails
+    (a dropped connection or a busy server usually works a moment later)."""
+    for attempt in range(attempts):
+        try:
+            return await asyncio.to_thread(fetch, *args)
+        except Exception:
+            if attempt == attempts - 1:
+                raise
+            await asyncio.sleep(wait)
+
+
+def fire_weather_index(series: list[dict]) -> list[dict]:
+    """Run the Canadian Fire Weather Index over the daily noon weather, oldest day first.
+
+    Each day keeps its weather and gains an "fwi" entry (fwi.FWIResult). The past days only
+    serve to bring the slow moisture codes (DMC, DC) up to date; the app shows today and the
+    forecast days.
+    """
+    results = fwi.run([fwi.DayWeather(d["month"], d["temp"], d["rh"], d["wind"], d["rain"]) for d in series])
+    return [{**day, "fwi": result} for day, result in zip(series, results)]
 
 
 LOADER_BG = "#DCEAF6"  # same light blue as the app icon and the phone's splash screen
@@ -408,6 +436,8 @@ class App:
         self.screen = HOME
 
         self.weather: dict | None = None
+        # Fire Weather Index per day: past days (for the moisture codes) + today + 6 forecast days
+        self.fire_days: list[dict] | None = None
         self.weather_status = "loading"  # loading | ready | error
         self.prediction: dict | None = None
         self.prediction_status = "waiting"  # waiting | running | ready | error
@@ -512,12 +542,17 @@ class App:
         self.prediction_status = "running" if self.weather else "waiting"
         self.views.render_all()
         self.page.update()
-        try:
-            if Testing.TESTING:
-                w = Testing.test_weather()
-            else:
-                w = await asyncio.to_thread(fetch_current_weather, self.place["lat"], self.place["lon"])
-        except Exception:
+        if Testing.TESTING:
+            w, series = Testing.test_weather(), Testing.test_fire_weather()
+        else:
+            # Both downloads at once; each is retried, and one failing doesn't sink the other
+            lat, lon = self.place["lat"], self.place["lon"]
+            w, series = await asyncio.gather(
+                with_retry(fetch_current_weather, lat, lon),
+                with_retry(fetch_fire_weather, lat, lon),
+                return_exceptions=True,
+            )
+        if isinstance(w, Exception):
             self.weather_status = "error"
             self.prediction_status = "error"
             self.views.render_all()
@@ -528,6 +563,14 @@ class App:
         self.views.weather.render()
         self.page.update()
         self._hide_loader()
+        if isinstance(series, Exception):  # live weather is shown, only the fire danger is missing
+            self.fire_days, self.prediction = None, None
+            self.prediction_status = "error"
+            self.views.prediction.render()
+            self.views.shortcuts.render()
+            self.page.update()
+            return
+        self.fire_days = fire_weather_index(series)
         await self.run_prediction()
 
     def show_loader(self):
@@ -558,13 +601,15 @@ class App:
         self.views.shortcuts.render()
         self.page.update()
         w = self.weather
+        week = [d for d in self.fire_days if d["forecast"]]  # today first
+        today = week[0]["fwi"]
         p = await asyncio.to_thread(
             predict_spread,
-            w["temperature_2m"], w["relative_humidity_2m"],
+            today.fwi,
             w["wind_direction_10m"], w["wind_speed_10m"],
             w["is_day"], w["cloud_cover"],
         )
-        self.prediction = {"weather": w, "result": p}
+        self.prediction = {"weather": w, "result": p, "fwi": today, "week": week}
         self.prediction_status = "ready"
         self._predicting = False
         self.views.prediction.render()
@@ -729,8 +774,23 @@ def weather_icon_name(w: dict) -> str:
     return "weather_sun.png"
 
 
+def day_icon_name(day: dict) -> str:
+    """Picture for a forecast day: snow or rain first, then strong wind, then cloud or sun.
+    Days are always shown as daytime, so there is no night picture here."""
+    code = day.get("code") or 0
+    if code in SNOW_CODES:
+        return "weather_snow.png"
+    if code in RAIN_CODES:
+        return "weather_rain.png"
+    if day.get("wind", 0) >= WINDY_KMH:
+        return "weather_wind.png"
+    if code in FOG_CODES or code == 3:  # fog or overcast
+        return "weather_cloud.png"
+    return "weather_sun.png"  # clear, mainly clear or partly cloudy
+
+
 def weather_picture(w: dict) -> ft.Control:
-    return image(weather_icon_name(w), 72)
+    return image("weather/" + weather_icon_name(w), 72)
 
 
 SCALE_WIDTH = 284  # fits inside the weather panel on phones as narrow as 360 dp
@@ -824,7 +884,7 @@ class WeatherPanel:
                     [
                         metric(ft.CupertinoIcons.DROP, t("weather.humidity"), self.humidity, "#2563EB", "#DBEAFE"),
                         metric(ft.CupertinoIcons.WIND, self.wind_label, self.wind, "#0D9488", "#CCFBF1"),
-                        metric(ft.CupertinoIcons.CLOUD, t("weather.clouds"), self.clouds, "#7C3AED", "#EDE9FE"),
+                        metric(ft.CupertinoIcons.CLOUD, t("weather.clouds"), self.clouds, "#475569", "#E2E8F0"),
                     ],
                     spacing=10,
                     vertical_alignment=ft.CrossAxisAlignment.START,
@@ -929,7 +989,7 @@ class Shortcuts:
             self.danger_detail.value = t("home.danger_retry")
             self.shield.color, self.danger_badge.bgcolor = MUTED, PANEL
         elif status == "ready" and app.prediction:
-            level = danger_label(app.prediction["result"]["danger"])
+            level = app.prediction["fwi"].danger
             self.danger_title.value = ""
             self.danger_title.spans = rich(
                 t("home.danger_today", level=t(f"danger.{level}")), bold_color=DANGER_COLORS[level][0]
@@ -1070,6 +1130,38 @@ def scenario_card(app: App, result: dict, selected: bool, on_click) -> ft.Contro
     )
 
 
+def day_name(app: App, date: str, index: int, long: bool = False) -> str:
+    """'Today' for the first forecast day, otherwise the weekday (short or long)."""
+    if index == 0:
+        return app.t("when.today")
+    weekday = datetime.strptime(date, "%Y-%m-%d").weekday()
+    return WEEKDAYS[app.lang]["long" if long else "short"][weekday]
+
+
+def forecast_day(app: App, index: int, day: dict) -> ft.Control:
+    """One day in the 7-day strip: weekday, the FWI as a big number coloured by its EFFIS
+    class, and the day's top temperature."""
+    result = day["fwi"]
+    color, tint = DANGER_COLORS[result.danger]
+    top = day.get("tmax")
+    return ft.Container(
+        ft.Column(
+            [
+                text(day_name(app, day["date"], index), size=13.5, color=INK if index == 0 else MUTED,
+                     weight=ft.FontWeight.W_600 if index == 0 else ft.FontWeight.W_500),
+                ft.Container(image("weather/" + day_icon_name(day), 32), padding=ft.Padding.symmetric(vertical=2)),
+                text(f"{result.fwi:.0f}", size=26 if result.fwi < 99.5 else 20, color=color, weight=ft.FontWeight.W_700),
+                text(f"{to_unit(top, app.unit):.0f}°" if top is not None else "", size=14, color=MUTED),
+            ],
+            spacing=2,
+            tight=True,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        expand=True,
+        tooltip=f"{app.t(f'danger.{result.danger}')} · FWI {result.fwi:.1f}",
+    )
+
+
 def forest_legend(app: App, case: str) -> list[ft.Control]:
     """What each symbol in the forest grid means, for the case being shown."""
     t = app.t
@@ -1096,29 +1188,76 @@ class PredictionView:
         self.flame = ft.Icon(ft.CupertinoIcons.FLAME, color=FOREST, size=22)
         self.danger = text("", size=17, weight=ft.FontWeight.W_600)  # status while there's no level yet
         self.status_row = ft.Row([self.flame, self.danger], alignment=ft.MainAxisAlignment.CENTER, spacing=8, wrap=True)
-        self.level_caption = text(t("risk.danger_label"), size=13, color=MUTED, weight=ft.FontWeight.W_500)
-        self.level_text = text("", size=20, color=CARD, weight=ft.FontWeight.W_700)
+        self.level_caption = text(t("risk.danger_label"), size=15, color=MUTED, weight=ft.FontWeight.W_500)
+        self.level_text = text("", size=28 if app.lang == "en" else 22, color=CARD, weight=ft.FontWeight.W_700)
         self.level_pill = ft.Container(
-            ft.Row([ft.Icon(ft.CupertinoIcons.FLAME_FILL, color=CARD, size=20), self.level_text], spacing=8, tight=True),
+            ft.Row([ft.Icon(ft.CupertinoIcons.FLAME_FILL, color=CARD, size=28), self.level_text], spacing=10, tight=True),
             border_radius=999,
-            padding=ft.Padding.symmetric(horizontal=20, vertical=9),
+            padding=ft.Padding.symmetric(horizontal=28, vertical=12),
         )
         self.level_block = ft.Column(
             [self.level_caption, self.level_pill], spacing=6, tight=True,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER, visible=False,
         )
-        self.conditions = text("", size=13.5, color=MUTED)
-        self.explain = text("", size=14, color=INK)
+        self.conditions = text("", size=13.5, color=MUTED)  # status line while there's no prediction
+        self.explain = text("", size=16, color=INK, style=ft.TextStyle(height=1.35))
+        # Four compact weather stats: icon, value, label
+        self.stat_values = [text("", size=18, weight=ft.FontWeight.W_700) for _ in range(4)]
+        self.stat_labels = [text("", size=13 if app.lang == "en" else 12, color=MUTED) for _ in range(4)]
+        self.stat_icons = [ft.Icon(icon, color=INK, size=26) for icon in (
+            ft.CupertinoIcons.THERMOMETER, ft.CupertinoIcons.DROP, ft.CupertinoIcons.WIND, ft.CupertinoIcons.SUN_MAX,
+        )]
+        self.stats = ft.Container(
+            ft.Row(
+                [
+                    ft.Column([icon, value, label], spacing=1, tight=True, expand=True,
+                              horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+                    for icon, value, label in zip(self.stat_icons, self.stat_values, self.stat_labels)
+                ],
+                spacing=2,
+            ),
+            bgcolor=ft.Colors.with_opacity(0.6, CARD),
+            border_radius=14,
+            padding=ft.Padding.symmetric(horizontal=2, vertical=12),
+            visible=False,
+        )
+        self.fwi_line = text("", size=13, color=MUTED, weight=ft.FontWeight.W_500)
+        # Next 7 days of fire danger, and the riskiest of them
+        self.week_row = ft.Row(spacing=4, alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        self.week_peak = text("", size=16, color=INK)
+        self.peak_chip = ft.Container(
+            self.week_peak, border_radius=999, padding=ft.Padding.symmetric(horizontal=16, vertical=8),
+        )
+        self.week_block = card(
+            ft.Column(
+                [
+                    section_title(t("risk.week_title")),
+                    text(t("risk.week_about"), size=15, color=MUTED),
+                    ft.Container(height=10),
+                    self.week_row,
+                    ft.Container(height=12),
+                    self.peak_chip,
+                ],
+                spacing=2,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            padding=ft.Padding.symmetric(horizontal=10, vertical=16),
+            visible=False,
+        )
+        self.sim_caption = text(t("risk.sim_caption"), size=12, color=FAINT)  # light footer note
         self.panel = ft.Container(
             bgcolor=MINT,
             border_radius=16,
-            padding=ft.Padding.symmetric(horizontal=18, vertical=18),
+            padding=ft.Padding.symmetric(horizontal=12, vertical=20),
             content=ft.Column(
                 [
                     self.status_row,
                     self.level_block,
-                    ft.Container(height=4),
+                    self.fwi_line,
+                    ft.Container(height=8),
                     self.conditions,
+                    self.stats,
+                    ft.Container(height=4),
                     self.explain,
                 ],
                 spacing=6,
@@ -1169,7 +1308,9 @@ class PredictionView:
                 self.intro,
                 ft.Container(height=8),
                 self.panel,
-                ft.Container(self.cards, margin=ft.Margin.only(top=6)),
+                ft.Container(self.week_block, margin=ft.Margin.only(top=6)),
+                ft.Container(self.sim_caption, margin=ft.Margin.only(top=14, bottom=4)),
+                self.cards,
                 self.detail,
             ],
             spacing=8,
@@ -1228,6 +1369,8 @@ class PredictionView:
         self.intro.value = t("risk.intro", city=city, city_of=georgian_genitive(city))
         self.panel.bgcolor, self.flame.color = MINT, FOREST
         self.status_row.visible, self.level_block.visible = True, False
+        self.fwi_line.value = ""
+        self.stats.visible, self.conditions.visible = False, True
         self.predict_button.disabled = app.animating
         self.predict_button.content = t("predict.running") if app.animating else t("predict.button")
 
@@ -1243,9 +1386,22 @@ class PredictionView:
             self.conditions.value = t("risk.simulating", runs=PREDICTION_RUNS)
             return
 
-        w, p = app.prediction["weather"], app.prediction["result"]
-        level = danger_label(p["danger"])
+        w, p, today = app.prediction["weather"], app.prediction["result"], app.prediction["fwi"]
+        week = app.prediction["week"]
+        level = today.danger
         color, tint = DANGER_COLORS[level]
+        self.fwi_line.value = t("risk.fwi_line", value=f"{today.fwi:.1f}")
+        self.week_row.controls = [forecast_day(app, i, d) for i, d in enumerate(week)]
+        peak_index = max(range(len(week)), key=lambda i: week[i]["fwi"].fwi)
+        peak = week[peak_index]["fwi"]
+        self.week_peak.value = ""
+        peak_key = "risk.week_peak_safe" if peak.danger in SAFE_LEVELS else "risk.week_peak"
+        self.week_peak.spans = rich(
+            t(peak_key, level=t(f"danger.{peak.danger}"), day=day_name(app, week[peak_index]["date"], peak_index, long=True)),
+            bold_color=DANGER_COLORS[peak.danger][0],
+        )
+        self.peak_chip.bgcolor = DANGER_COLORS[peak.danger][1]
+        self.week_block.visible = True
         if not w["is_day"]:
             light = "night"
         elif p["sun"] < 0.05:
@@ -1259,12 +1415,19 @@ class PredictionView:
             self.status_row.visible, self.level_block.visible = False, True
             self.level_text.value = t(f"danger.{level}")
             self.level_pill.bgcolor = color
-        self.conditions.value = t(
-            "risk.conditions",
-            temp=f"{to_unit(w['temperature_2m'], app.unit):.0f}", unit=app.unit,
-            humidity=w["relative_humidity_2m"], speed=f"{w['wind_speed_10m']:.0f}",
-            light=t(f"risk.light.{light}", percent=f"{p['sun'] * 100:.0f}"),
-        )
+        self.conditions.visible, self.stats.visible = False, True
+        values = [
+            f"{to_unit(w['temperature_2m'], app.unit):.0f}°{app.unit}",
+            f"{w['relative_humidity_2m']}%",
+            t("weather.wind_value", speed=f"{w['wind_speed_10m']:.0f}"),
+            f"{p['sun'] * 100:.0f}%" if light == "sun" else "–",
+        ]
+        labels = [t("risk.stat_air"), t("weather.humidity"), t("weather.wind"), t(f"risk.stat_{light}")]
+        for value_text, label_text, value, label in zip(self.stat_values, self.stat_labels, values, labels):
+            value_text.value, label_text.value = value, label
+        self.stat_icons[3].icon = {
+            "sun": ft.CupertinoIcons.SUN_MAX, "overcast": ft.CupertinoIcons.CLOUD, "night": ft.CupertinoIcons.MOON,
+        }[light]
         self.explain.value = t(f"risk.explain.{light}", toward=t(f"toward.{p['wind']}"))
 
         results = p["results"]
@@ -1306,7 +1469,7 @@ GEORGIA_TZ = timezone(timedelta(hours=4))  # Georgia is UTC+4 all year
 
 
 def _data(name: str, default=None):
-    path = APP_DIR / "Data" / name
+    path = APP_DIR / "data" / name
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
 
 
@@ -1806,7 +1969,7 @@ def top_bar(app: App) -> ft.Control:
             [
                 ft.Row(
                     [
-                        image("heat_seeker_mark.png", 37, 24),
+                        image("brand/heat_seeker_mark.png", 37, 24),
                         text("Heat-Seeker", size=17, weight=ft.FontWeight.W_600),
                         test_tag(app) if Testing.TESTING else ft.Container(),
                     ],
@@ -1882,7 +2045,6 @@ class Views:
 
     def __init__(self, app: App):
         self.app = app
-        t = app.t
         self.weather = WeatherPanel(app)
         self.shortcuts = Shortcuts(app)
         self.prediction = PredictionView(app)

@@ -1,12 +1,10 @@
 import random
-import time
 
 TREE = "🌲"
 FIRE = "🔥"
 ASH = "⚫"
 GLASS = "🍾"
 FLAMMABLE = "🛢️"
-WINDS = ["north", "south", "east", "west"]
 OPPOSITE = {"east": "west", "west": "east", "north": "south", "south": "north"}
 
 
@@ -89,19 +87,21 @@ def count_trees(grid) -> int:
     return sum(cell == TREE for row in grid for cell in row)
 
 
-def print_grid(grid):
-    for row in grid:
-        print("  ".join(row))
-    print("------------------")
-
 def _clamp(x: float) -> float:
     return min(max(x, 0.0), 1.0)
 
 
-def fire_danger(temp_c: float, rh: float) -> float:
-    heat = _clamp((temp_c - 5) / 35)
-    dryness = _clamp(1 - rh / 100)
-    return heat * (0.3 + 0.7 * dryness)
+FWI_FOR_FULL_INTENSITY = 50.0  # EFFIS "Extreme" starts at FWI 50
+
+
+def intensity_from_fwi(fwi_value: float) -> float:
+    """How hard the teaching forest burns (0-1), driven by the Canadian Fire Weather Index.
+
+    The FWI (see fwi.py) is the validated part: it rates real fire danger from weather.
+    This simulation only *illustrates* that rating on a 10x10 forest, so its percentages
+    are a picture of the danger level, not a forecast of how much real forest would burn.
+    """
+    return _clamp(fwi_value / FWI_FOR_FULL_INTENSITY)
 
 
 def wind_toward(wind_from_deg: float) -> str:
@@ -179,8 +179,7 @@ def simulate_forest(obj, danger, wind, wind_strength, sun, size=10):
 
 
 def predict_spread(
-    temp_c: float,
-    rh: float,
+    fwi_value: float,
     wind_from_deg: float,
     wind_speed_kmh: float,
     is_day: int,
@@ -188,7 +187,7 @@ def predict_spread(
     runs: int = PREDICTION_RUNS,
     size: int = 10,
 ) -> dict:
-    danger = fire_danger(temp_c, rh)
+    danger = intensity_from_fwi(fwi_value)
     wind = wind_toward(wind_from_deg)
     strength = wind_strength_from_speed(wind_speed_kmh)
     sun = sunlight(is_day, cloud_cover)
@@ -225,13 +224,3 @@ def predict_spread(
         "sun": sun,
         "results": results,
     }
-
-
-if __name__ == "__main__":
-    grid = make_grid(10, fire_at=(4, 4))
-    while has_fire(grid):
-        print_grid(grid)
-        time.sleep(0.2)
-        spread(grid, "south")
-    print_grid(grid)
-    print(f"{count_trees(grid)} Trees Survived")

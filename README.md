@@ -2,60 +2,129 @@
 
 A Python-based application that combines a **Heat Risk Checker** and a **Fire Spread Simulator** to analyze weather conditions and simulate how wildfires spread.
 
-It is built with [Flet](https://flet.dev), so the same code runs as a **Windows desktop app** and as an **Android app (APK)**. It uses live weather for any place in Georgia, predicts how a forest fire would behave in that weather, and shows fires that NASA satellites have spotted in Georgia over the last 5 days, in **English and Georgian**.
+It is built with [Flet](https://flet.dev), so the same code runs as a **Windows desktop app** and as an **Android app (APK)**. For any place in Georgia it shows the live weather and heat risk, rates today's **fire danger with the Canadian Fire Weather Index** (the system EFFIS uses across Europe and the Caucasus), forecasts it for the **next 7 days**, and maps the fires NASA satellites have spotted in Georgia over the last 5 days, in **English and Georgian**.
 
 ---
 
-## Screenshots (v1.3)
+## Screenshots
 
 <table>
   <tr>
     <td align="center"><img src="docs/screenshots/loading.png" width="230" alt="Loading screen"><br><b>Loading screen</b></td>
     <td align="center"><img src="docs/screenshots/home.png" width="230" alt="Home screen with live weather"><br><b>Home</b> (live weather)</td>
-    <td align="center"><img src="docs/screenshots/home-hot-test.png" width="230" alt="Home screen on a hot day"><br><b>Home</b> on a hot, dry day*</td>
+    <td align="center"><img src="docs/screenshots/fire-risk.png" width="230" alt="Fire Risk screen with live data"><br><b>Fire Risk</b> (live)</td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/fire-risk.png" width="230" alt="Fire Risk screen"><br><b>Fire Risk</b>*</td>
-    <td align="center"><img src="docs/screenshots/forest.png" width="230" alt="Forest simulation with burned trees"><br><b>Forest prediction</b>*</td>
+    <td align="center"><img src="docs/screenshots/forecast.png" width="230" alt="7-day fire danger forecast"><br><b>7-day forecast</b> (live)</td>
+    <td align="center"><img src="docs/screenshots/fire-risk-extreme.png" width="230" alt="Fire Risk on an extreme day"><br><b>Fire Risk</b> on an extreme day*</td>
+    <td align="center"><img src="docs/screenshots/forest.png" width="230" alt="Forest simulation with burned trees"><br><b>Learning simulation</b>*</td>
+  </tr>
+  <tr>
     <td align="center"><img src="docs/screenshots/fires-map.png" width="230" alt="Fires Happening map"><br><b>Fires Happening</b>*</td>
-  </tr>
-  <tr>
     <td align="center"><img src="docs/screenshots/fires-list.png" width="230" alt="List of fires and industrial heat"><br><b>Fire list</b>*</td>
-    <td align="center"><img src="docs/screenshots/settings.png" width="230" alt="Settings sheet"><br><b>Settings</b></td>
-    <td align="center"><img src="docs/screenshots/home-georgian.png" width="230" alt="Home screen in Georgian"><br><b>Georgian</b>*</td>
+    <td align="center"><img src="docs/screenshots/fire-risk-georgian.png" width="230" alt="Fire Risk screen in Georgian"><br><b>Georgian</b> (live)</td>
   </tr>
 </table>
 
-\* Taken in test mode (see [Test mode](#test-mode)) with made-up weather (38 °C, 15% humidity, 25 km/h wind) and sample fires, to show what the app looks like when the danger is high. The amber **Test data** tag marks these.
+\* Taken in test mode (see [Test Mode](#test-mode)) with made-up weather (38 °C, 15% humidity, 25 km/h wind, 40 dry days) and sample fires, to show the app when the danger is high. The amber **Test data** tag marks these.
 
 ---
 
 ## Features
 
 ### Home
-- **Live weather** for Tbilisi or any town in Georgia (Open-Meteo): temperature, humidity, wind and cloud cover, with a weather icon that follows the sky (sun, night, cloud, rain, snow, wind).
-- **Heat risk** shown as a coloured pill under the temperature (Safe, Caution, Extreme caution, Danger, Extreme danger), worked out with the Heat Index formula, plus a "feels like" temperature and a green-to-red risk meter.
+- **Live weather** for Tbilisi or any town in Georgia (Open-Meteo): temperature, humidity, wind and cloud cover, with a weather picture that follows the sky (sun, night, cloud, rain, snow, wind).
+- **Heat risk** as a coloured pill under the temperature (Safe, Caution, Extreme caution, Danger, Extreme danger), from the NOAA Heat Index, plus a "feels like" temperature and a green-to-red meter.
 - **Today's fire danger** and the **number of fires in Georgia**, as cards that open the other screens.
 - **Check any location**: search any town or village in Georgia (only Georgia), or pick one of 8 cities.
-- **Check any temperature**: a small calculator for the heat index of any temperature and humidity.
+- **Check any temperature**: a heat index calculator for any temperature and humidity.
 
 ### Fire Risk
-- **Fire danger level** (Low, Moderate, High, Extreme) for the chosen place, from temperature, humidity, wind and sunshine, shown as a big coloured pill.
-- **Three cases**, each simulated on 300 forests: *heat alone*, *broken glass* (it can focus sunlight, so only by day) and *flammable litter*. Each card shows the share of trees that burn on average.
-- **A 10×10 forest** for the selected case, showing a typical outcome: green trees, orange flames and charred trees, with a legend.
-- **Predict fire**: fetches the latest weather, lights a fire in the forest and animates it spreading with the real wind direction and strength.
-- The weather, and with it the prediction, **updates by itself every 15 minutes**.
+- **Fire danger today** from the **Canadian Fire Weather Index (FWI)**, shown as a large badge in a traffic-light colour: green = safe, yellow = caution, red = danger. The FWI value is shown under it.
+- **Today's weather** as four big icons (air temperature, humidity, wind, sunshine) and two plain sentences on which way a fire would spread and whether broken glass could start one.
+- **Next 7 days**: a weather picture, the FWI number in its danger colour and the top temperature for each day, and a chip naming the riskiest day ("Highest risk: Monday (still Low)").
+- **Learning simulation**: three cases (*heat alone*, *broken glass*, *flammable litter*), each simulated on 300 small forests burning at today's FWI. Clearly labelled as a picture of the danger level, not a forecast of a real forest.
+- **Predict fire**: fetches the latest weather, lights a fire in a 10×10 forest and animates it spreading with the real wind.
+- Built to be **easy to read**, including for older people: large text, big numbers, short sentences.
+- The weather and the danger **update by themselves every 15 minutes**.
 
 ### Fires Happening
-- **A map of Georgia** with the real Black Sea coastline, terrain shading, the six main rivers (Mtkvari, Rioni, Enguri, Alazani, Tskhenistskali, Aragvi), city dots and a legend.
-- **Red pins** for fires detected by NASA's VIIRS NOAA-21 satellite in the last 5 days, sized by fire power. Detections are checked against OpenStreetMap so only fires **inside Georgia** are shown.
-- **A list of fires** with place name, time (Georgian time) and fire power, each with a link to Google Maps.
-- **Likely industrial heat**: satellites can't tell a steel plant from a fire. A hot spot within 2 km of a known heat-producing site (19 sites, such as the Zestaponi Ferroalloy Factory, the Rustavi plants and the Gardabani power stations) that was also seen on another day in the last 15 days is shown as a grey square and labelled *Likely industrial heat*, not counted as a fire.
+- **A map of Georgia** with the real Black Sea coastline, terrain shading, the six main rivers, city dots and a legend.
+- **Red pins** for fires detected by NASA's VIIRS NOAA-21 satellite in the last 5 days, sized by fire power, checked against OpenStreetMap so only fires **inside Georgia** are shown.
+- **A list of fires** with place name, time (Georgian time) and fire power, each with a Google Maps link.
+- **Likely industrial heat**: satellites can't tell a steel plant from a fire. A hot spot within 2 km of a known heat-producing site that was also seen on another day in the last 15 days is shown as a grey square and not counted as a fire (see [Validation](#validation-of-the-industrial-heat-filter)).
 
 ### Everywhere
-- **English and Georgian**, switched in Settings. The choice (and °C/°F) is remembered between launches. Place names from search and OpenStreetMap come in the chosen language.
-- **Custom loading screen**: the phone's splash screen, a startup screen and an in-app loading screen, all on the app icon's light blue.
-- **Clean, mobile-first design**: Inter and Noto Sans Georgian fonts in real weights, a single 4-step risk palette (green, yellow, orange, red), soft shadows, and a tab bar for the three screens. On phones the header and tab bar stay clear of the status and navigation bars.
+- **English and Georgian**, switched in Settings and remembered between launches, together with °C/°F.
+- **Custom loading screen**: the phone's splash screen, a startup screen and an in-app loading screen.
+- **Mobile-first design** with Inter and Noto Sans Georgian fonts; on phones the header and tab bar stay clear of the status and navigation bars.
+
+---
+
+## How the Fire Danger Is Calculated
+
+The danger rating is the **Canadian Forest Fire Weather Index (FWI) System** ([Van Wagner, 1987](https://cfs.nrcan.gc.ca/publications?id=19927)), the system used by Canada and by [EFFIS](https://forest-fire.emergency.copernicus.eu/), the European Forest Fire Information System, which covers Georgia. It is implemented in [`Application/core/fwi.py`](Application/core/fwi.py).
+
+From each day's **noon temperature, humidity, wind and 24-hour rain** it tracks how dry the forest is:
+
+| Code | What it measures | Reacts within |
+|---|---|---|
+| FFMC | Fine Fuel Moisture Code: dryness of litter and fine fuels | hours |
+| DMC | Duff Moisture Code: dryness of the loose organic layer | weeks |
+| DC | Drought Code: dryness of deep organic layers | months |
+| ISI | Initial Spread Index: how fast a fire would spread (FFMC + wind) | |
+| BUI | Buildup Index: how much fuel is available (DMC + DC) | |
+| **FWI** | **Fire Weather Index: overall fire danger (ISI + BUI)** | |
+
+Because DMC and DC remember weeks of weather, the app downloads the **last ~2 months** of noon weather plus the **7-day forecast** from Open-Meteo and runs the index day by day. The FWI is then grouped into the **EFFIS danger classes**:
+
+| FWI | Danger | Colour in the app |
+|---|---|---|
+| below 5.2 | Very low | green |
+| 5.2 – 11.2 | Low | green |
+| 11.2 – 21.3 | Moderate | yellow |
+| 21.3 – 38 | High | red |
+| 38 – 50 | Very high | darker red |
+| 50 and above | Extreme | darkest red |
+
+The implementation reproduces the **published test values** of the FWI System (Van Wagner & Pickett, 1985) exactly, for all six numbers (see [Testing](#testing)).
+
+---
+
+## Testing
+
+The tests use [pytest](https://pytest.org) and need no internet or API key:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+```bash
+python -m pytest tests
+```
+
+**202 checks** in `tests/`:
+
+| File | What it checks |
+|---|---|
+| `test_fwi.py` | FWI against the published test data (Van Wagner & Pickett 1985), EFFIS class boundaries, rain and drought behaviour |
+| `test_heat.py` | Heat Index against 9 values from the NOAA heat index chart, and the heat risk levels |
+| `test_fire_sim.py` | wind direction, fire spreading only to neighbours, fires always burning out, a higher FWI burning more |
+| `test_nasa_firms.py` | distances, the industrial-site check, `days_seen`, and the Georgia filter (with the network faked) |
+| `test_day_icons.py` | which weather picture each forecast day gets |
+| `test_translations.py` | every text exists in English and Georgian and fills in the same values |
+
+---
+
+## Validation of the Industrial Heat Filter
+
+[`validation/validate_industrial_filter.py`](validation/validate_industrial_filter.py) applies the app's rule to one month of real NASA FIRMS data (14 Oct – 12 Nov 2026) and checks the result against satellite imagery. Full write-up: **[validation/REPORT.md](validation/REPORT.md)**.
+
+- **17** satellite detections inside Georgia; **8 (47%)** were heat from three industrial plants (Zestaponi ferroalloy ×4, Rustavi cement ×2, Kaspi cement ×2) and were all reclassified.
+- **All 8** industrial detections were made **at night**, against 22% of the fires. The rule never looks at the time of day, so this is independent support.
+- On satellite images, **3 of 3** reclassified places are industrial plants and **4 of 4** of the strongest detections kept as fires are on farmland.
+
+![Detections per week and per site](validation/results/chart.png)
 
 ---
 
@@ -88,24 +157,12 @@ env\Scripts\activate
 **4. Install the required dependencies**
 
 ```bash
-pip install requests python-dotenv flet truststore
-```
-
-**5. Save the installed dependencies (optional)**
-
-```bash
-pip freeze > requirements.txt
-```
-
-**6. Install dependencies from the requirements file (when available)**
-
-```bash
 pip install -r requirements.txt
 ```
 
-`os` and `csv` are part of Python's standard library, so they do not need to be installed separately.
+`os`, `csv` and `json` are part of Python's standard library, so they do not need to be installed separately.
 
-**7. Add your NASA FIRMS key**
+**5. Add your NASA FIRMS key**
 
 The Fires Happening screen needs a free NASA FIRMS map key ([request one here](https://firms.modaps.eosdis.nasa.gov/api/map_key/)). Create a file called `.env` in the `Application` folder with:
 
@@ -129,7 +186,7 @@ cd Application
 python main.py
 ```
 
-The app opens in a phone-sized window. Use the Python from the virtual environment (activate it first, or run `..\env\Scripts\python.exe main.py`); the system Python doesn't have Flet installed.
+The app opens in a phone-sized window. Use the Python from the virtual environment; the system Python doesn't have Flet installed.
 
 ### On a phone, live from the computer
 
@@ -147,13 +204,13 @@ Scan the QR code with the Flet app. Changes to the code reload on the phone as s
 
 ### As an Android app (APK)
 
-Double-click **`build_apk.bat`** in the project folder, or run it from a terminal. It runs `flet build apk`, keeps all the build tools (Flutter, Java, Android SDK, about 8–10 GB) in `E:\FletTools` instead of drive C:, and works behind antivirus HTTPS scanning. The first build downloads those tools and takes 15–30 minutes; later builds take a few minutes.
+Run **`scripts\build_apk.bat`** (double-click it, or run it from a terminal). It runs `flet build apk` and works behind antivirus HTTPS scanning. The build tools (Flutter, Java, Android SDK, about 8–10 GB) are kept in `E:\FletTools`; to use another folder, set it first, for example `set FLET_TOOLS=D:\FletTools`. The first build takes 15–30 minutes; later builds take a few minutes.
 
 ```bash
-build_apk.bat --arch arm64-v8a
+scripts\build_apk.bat --arch arm64-v8a
 ```
 
-builds a smaller APK (about 60 MB) for 64-bit phones, which is nearly every Android phone from the last 6–7 years. The APK is saved in `Application\build\apk\`. Copy it to the phone, open it and allow "Install unknown apps". The app's name, version, icon, splash screen and startup screen are set in `Application\pyproject.toml`.
+builds a smaller APK (about 60 MB) for 64-bit phones, nearly every Android phone from the last 6–7 years. The APK is saved in `Application\build\apk\`. Copy it to the phone, open it and allow "Install unknown apps". The app's name, version, icon, splash screen and startup screen are set in `Application\pyproject.toml`.
 
 ---
 
@@ -167,12 +224,14 @@ TEMPERATURE_C = 38
 HUMIDITY = 15
 WIND_SPEED_KMH = 25
 WIND_FROM = "W"
-SKY = "clear"    # clear, cloudy, fog, rain, snow, storm
+SKY = "clear"          # clear, cloudy, fog, rain, snow, storm
+DRY_DAYS_BEFORE = 40   # rain-free days before today, for the Fire Weather Index
+FORECAST = [...]       # today and 6 more days: (temperature change, humidity change, rain mm)
 FIRES = [
     (42.272, 42.625, 2, 14.0, "Kutaisi", "Imereti"),  # latitude, longitude, hours ago, fire power (MW), place, region
     ...
 ]
-SEEN_BEFORE = [...]  # earlier detections, for testing the "Likely industrial heat" label
+SEEN_BEFORE = [...]    # earlier detections, for testing the "Likely industrial heat" label
 ```
 
 While test mode is on, a **Test data** tag is shown next to the logo, so test values are never mistaken for real ones.
@@ -183,23 +242,36 @@ While test mode is on, a **Test data** tag is shown next to the logo, so test va
 
 ```
 Heat-Seeker/
-├── build_apk.bat              Builds the Android APK (tools kept on E:)
-├── docs/screenshots/          Screenshots used in this README
-└── Application/
-    ├── main.py                The app: screens, map, loading screen, settings
-    ├── heat.py                Heat Index, live weather and place search (Open-Meteo)
-    ├── fire_sim.py            Forest fire simulation and the 300-forest prediction
-    ├── NASA_FIRMS_API.py      NASA FIRMS fires, Georgia filter, industrial heat check
-    ├── translations.py        All interface text in English and Georgian
-    ├── Testing.py             Test mode values
-    ├── pyproject.toml         Android build settings (name, version, icon, splash)
-    ├── .env                   FIRMS_KEY (not committed)
-    ├── Data/
-    │   ├── georgia_outline.json     Georgia's border and coastline
-    │   ├── georgia_rivers.json      Main rivers
-    │   ├── georgia_elevation.json   Terrain heights for the map shading
-    │   └── industrial_sites.json    Factories and power plants for the industrial heat check
-    └── assets/                Icons, images, splash screen and fonts
+├── Application/                The app
+│   ├── main.py                 Interface: screens, map, loading screen, settings (start here)
+│   ├── translations.py         All interface text in English and Georgian
+│   ├── Testing.py              Test mode values
+│   ├── pyproject.toml          Android build settings (name, version, icon, splash)
+│   ├── .env                    FIRMS_KEY (not committed)
+│   ├── core/                   The science and data, separate from the interface
+│   │   ├── heat.py             Heat Index, live weather, 7-day forecast, place search (Open-Meteo)
+│   │   ├── fwi.py              Canadian Fire Weather Index System and EFFIS danger classes
+│   │   ├── fire_sim.py         Learning simulation of a forest fire, driven by the FWI
+│   │   └── nasa_firms.py       NASA FIRMS fires, Georgia filter, industrial heat check
+│   ├── data/
+│   │   ├── georgia_outline.json     Georgia's border and coastline
+│   │   ├── georgia_rivers.json      Main rivers
+│   │   ├── georgia_elevation.json   Terrain heights for the map shading
+│   │   └── industrial_sites.json    Factories and power plants for the industrial heat check
+│   └── assets/
+│       ├── icon.png, splash.png     App icon and splash screen
+│       ├── brand/                   Logo mark and window icon
+│       ├── weather/                 Weather pictures
+│       ├── forest/                  Sun, glass and litter pictures for the simulation
+│       └── fonts/                   Inter and Noto Sans Georgian (with licences)
+├── tests/                      Unit tests (pytest)
+├── validation/                 Industrial heat filter study: script, results, REPORT.md
+├── scripts/build_apk.bat       Builds the Android APK
+├── docs/
+│   ├── screenshots/            Screenshots used in this README
+│   └── design/                 Original artwork: design mock-up, icon and logo sources
+├── requirements.txt            Packages the app needs
+└── requirements-dev.txt        Extra tools for the tests and the validation chart
 ```
 
 ---
@@ -208,11 +280,13 @@ Heat-Seeker/
 
 | What | Source |
 |---|---|
-| Weather and place search | [Open-Meteo](https://open-meteo.com) forecast and geocoding APIs |
+| Weather, 7-day forecast, place search | [Open-Meteo](https://open-meteo.com) forecast and geocoding APIs |
+| Fire danger method | Canadian Forest Fire Weather Index System (Van Wagner 1987), danger classes of [EFFIS](https://forest-fire.emergency.copernicus.eu/) |
 | Fires | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov), VIIRS NOAA-21 near-real-time data |
 | Place names for fires | [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) |
 | Map outline, coastline, rivers, industrial sites | © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL |
 | Terrain heights | Copernicus DEM GLO-90, via the Open-Meteo elevation API |
+| Satellite images in the validation study | Esri World Imagery (Esri, Maxar, Earthstar Geographics) |
 | Fonts | [Inter](https://rsms.me/inter/) and [Noto Sans Georgian](https://github.com/notofonts/georgian), SIL Open Font License |
 
 ---
@@ -512,27 +586,13 @@ GEORGIA_BBOX = "39.9,41.0,46.8,43.6"
 
 Since Georgia's geographical shape does not follow a simple rectangle, additional geographical filtering is applied to ensure that monitoring focuses specifically on the country's territory.
 
-The collected NASA FIRMS data is integrated with Google Maps, allowing users to visualize detected fire hotspots and identify their geographical locations on an interactive map.
+The detected fire hotspots are shown on the app's own map of Georgia, and each one has a Google Maps link to see exactly where it is.
 
 ### Weather-Based Fire Risk Assessment
 
-In addition to satellite monitoring, the application presents weather conditions that can significantly influence wildfire risk.
+In addition to satellite monitoring, the application rates how dangerous the weather is for wildfires with the **Canadian Fire Weather Index**, the system used by EFFIS across Europe and the Caucasus (see [How the Fire Danger Is Calculated](#how-the-fire-danger-is-calculated)). For example, a hot, dry and windy day in Tbilisi (38 °C, 15% humidity, 25 km/h wind, after 40 days without rain) gives an FWI above 100: **Extreme** danger.
 
-For example, under the following illustrative conditions in Tbilisi:
-
-- Temperature: 35°C
-- Relative humidity: 18%
-- Weather: Hot and dry
-
-The application displays the following illustrative fire-risk indicators:
-
-| Risk Scenario | Indicator | Explanation |
-|---|---:|---|
-| General forest fire risk | 55% | High temperatures and low humidity create favorable conditions for vegetation to dry out and become more susceptible to ignition. |
-| Glass waste scenario | 75% | Discarded glass can, under specific conditions, concentrate sunlight and potentially contribute to ignition. The risk depends on the type and shape of the glass, its position, sunlight, and surrounding dry vegetation. |
-| Cigarette butt scenario | 85% | A discarded cigarette butt can ignite dry grass, leaves, and other combustible materials, especially during hot and dry weather. |
-
-> These percentages are conceptual risk indicators for the demonstration. They are intended to illustrate how environmental conditions and human behavior can influence fire danger, rather than represent scientifically validated probabilities.
+The learning simulation then shows what that danger level means for a small forest with nothing in it, with broken glass, or with flammable litter. These simulated percentages illustrate the danger level; they are not a forecast of how much real forest would burn.
 
 ### CSR – Creating Awareness and Preventing Wildfires
 
@@ -556,11 +616,11 @@ To combine satellite technology, geographical intelligence, weather information,
 
 ---
 
----
-
 # AI Assistance
 
 The application's design was created with AI assistance (Claude Code Opus 5.5).
+
+AI assistance (Claude Code, Opus 5.5) was also used to build and check the features added after the first versions: the Flet interface and map, the Fire Weather Index implementation and 7-day forecast, the industrial heat filter and its validation study, the unit tests and the Android build. The original Heat Risk Checker and Fire Spread Simulator above were written by hand. Every feature was checked by running the app with live and test data, and the science is checked by the tests against published values (NOAA heat index chart, Van Wagner & Pickett FWI test data).
 
 The application icon was created with ChatGPT by OpenAI.
 

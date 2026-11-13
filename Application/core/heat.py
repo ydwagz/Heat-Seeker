@@ -80,6 +80,65 @@ def fetch_current_weather(lat: float = TBILISI[0], lon: float = TBILISI[1]) -> d
     return response.json()["current"]
 
 
+FIRE_WEATHER_PAST_DAYS = 92  # Open-Meteo's maximum; the Drought Code needs months to settle
+FORECAST_DAYS = 7
+
+
+def fetch_fire_weather(lat: float = TBILISI[0], lon: float = TBILISI[1]) -> list[dict]:
+    """Daily noon weather for the Fire Weather Index: the last 92 days and the next 7.
+
+    Each day has its date, month, noon temperature (deg C), relative humidity (%), wind
+    speed (km/h), the rain of the 24 hours up to noon (mm), the day's highest temperature,
+    and whether it is a forecast (today counts as a forecast: its noon may still be ahead).
+    """
+    response = requests.get(
+        WEATHER_URL,
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "hourly": "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation",
+            "daily": "temperature_2m_max,weather_code",
+            "past_days": FIRE_WEATHER_PAST_DAYS,
+            "forecast_days": FORECAST_DAYS,
+            "timezone": "auto",
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    data = response.json()
+    hourly, daily = data["hourly"], data["daily"]
+    today = data["daily"]["time"][FIRE_WEATHER_PAST_DAYS]  # first forecast day = today, local time
+    tmax = dict(zip(daily["time"], daily["temperature_2m_max"]))
+    codes = dict(zip(daily["time"], daily["weather_code"]))
+
+    days = []
+    times = hourly["time"]
+    for i, stamp in enumerate(times):
+        if not stamp.endswith("T12:00") or i < 23:
+            continue  # noon only, and only once a full 24 hours of rain is available
+        temp = hourly["temperature_2m"][i]
+        rh = hourly["relative_humidity_2m"][i]
+        wind = hourly["wind_speed_10m"][i]
+        rain_hours = hourly["precipitation"][i - 23 : i + 1]  # 13:00 yesterday .. 12:00 today
+        if None in (temp, rh, wind) or None in rain_hours:
+            continue
+        date = stamp[:10]
+        days.append(
+            {
+                "date": date,
+                "month": int(date[5:7]),
+                "temp": temp,
+                "rh": rh,
+                "wind": wind,
+                "rain": sum(rain_hours),
+                "tmax": tmax.get(date),
+                "code": codes.get(date),  # the day's main weather (WMO code), for its picture
+                "forecast": date >= today,
+            }
+        )
+    return days
+
+
 def search_places(name: str, count: int = 8, language: str = "en") -> list[dict]:
     """Places in Georgia matching a name, best match first: name, region, latitude, longitude.
 
@@ -106,11 +165,3 @@ def search_places(name: str, count: int = 8, language: str = "en") -> list[dict]
             }
         )
     return places
-
-
-if __name__ == "__main__":
-    current = fetch_current_weather()
-    print(f'time: {current["time"]}')
-    print(f'Temperature: {current["temperature_2m"]} C')
-    print(f'Humidity: {current["relative_humidity_2m"]} %')
-    print(heat_risk_checker(current["temperature_2m"], current["relative_humidity_2m"]))

@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 # Windows certificate store for HTTPS behind antivirus scanning; not on Android (see heat.py)
 if sys.platform == "win32":
     truststore.inject_into_ssl()
-load_dotenv(Path(__file__).parent / ".env")  # next to this file, wherever the app is started from
+load_dotenv(Path(__file__).parent.parent / ".env")  # Application/.env, wherever the app is started from
 
 FIRMS_KEY = os.getenv("FIRMS_KEY")
 FIRMS_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
@@ -64,16 +64,14 @@ def iter_fires_in_georgia(fires: list[dict], lang: str = "en"):
             yield {**fire, "address": address}
 
 
-def fires_in_georgia(fires: list[dict]) -> list[dict]:
-    return list(iter_fires_in_georgia(fires))
-
-
 # --- Industrial heat ----------------------------------------------------------
 # Satellites can't tell a smelter or a gas flare from a fire. A hot spot close to a
 # known heat-producing site that keeps showing up on different days is labelled
 # "likely industrial heat" instead of being counted as a fire.
 
-INDUSTRIAL_SITES = json.loads((Path(__file__).parent / "Data" / "industrial_sites.json").read_text(encoding="utf-8"))["sites"]
+INDUSTRIAL_SITES = json.loads(
+    (Path(__file__).parent.parent / "data" / "industrial_sites.json").read_text(encoding="utf-8")
+)["sites"]
 SITE_RADIUS_KM = 2.0  # how close to a factory a hot spot must be
 SAME_SPOT_KM = 1.0  # detections this close together count as the same spot
 HISTORY_DAYS = 15  # how far back to look for earlier detections
@@ -121,31 +119,3 @@ def place_name(address: dict) -> str:
     )
     region = address.get("state")
     return ", ".join(part for part in (settlement, region) if part) or "Georgia"
-
-
-def detection_time(fire: dict) -> str:
-    hhmm = fire["acq_time"].zfill(4)
-    return f"{fire['acq_date']} {hhmm[:2]}:{hhmm[2:]} UTC"
-
-
-def main():
-    if not FIRMS_KEY:
-        raise SystemExit("FIRMS_KEY is missing. Add it to Application/.env.")
-
-    fires = fetch_fires()
-    georgia = fires_in_georgia(fires)
-    skipped = len(fires) - len(georgia)
-
-    print(f"{len(georgia)} fires detected in Georgia in the last {DAYS} days.")
-    if skipped:
-        print(f"Skipped {skipped} detections just across the border.")
-
-    for fire in sorted(georgia, key=detection_time, reverse=True):
-        lat, lon = fire["latitude"], fire["longitude"]
-        print()
-        print(f"{detection_time(fire)}  {place_name(fire['address'])}")
-        print(f"  https://www.google.com/maps?q={lat},{lon}")
-
-
-if __name__ == "__main__":
-    main()

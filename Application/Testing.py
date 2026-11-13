@@ -13,6 +13,20 @@ IS_DAY = True  # False = night: no sunshine, so glass can't start fires
 SKY = "clear"  # weather icon: clear, cloudy, fog, rain, snow, storm
 TIME = "14:30"  # shown as "Updated 14:30 local time"
 
+# --- Fire Weather Index: the 7-day forecast on the Fire Risk screen -----------
+DRY_DAYS_BEFORE = 40  # days without rain before today, with the weather above (dries the forest floor)
+# Today and the next 6 days, as changes from the weather above: (temperature change in °C,
+# humidity change in %, rain in mm). The first line is today.
+FORECAST = [
+    (0, 0, 0),
+    (2, -3, 0),
+    (3, -5, 0),
+    (-2, 10, 0),
+    (-8, 35, 12),  # a rainy day: the danger drops
+    (-5, 20, 0),
+    (0, 5, 0),
+]
+
 
 # --- Fires: Fires Happening screen -------------------------------------------
 # One line per fire: (latitude, longitude, hours ago, fire power in MW, place, region)
@@ -27,7 +41,7 @@ FIRES = [
 ]
 
 # Earlier detections of the same spots: (latitude, longitude, days ago).
-# A fire within 2 km of a factory or power plant (Data/industrial_sites.json) that was also
+# A fire within 2 km of a factory or power plant (data/industrial_sites.json) that was also
 # seen on another day is shown as "Likely industrial heat" instead of a fire.
 # Leave the list empty, SEEN_BEFORE = [], and the Kveda Sakara fire above shows as a fire.
 SEEN_BEFORE = [
@@ -94,3 +108,23 @@ def test_history() -> list[dict]:
         }
         for lat, lon, days_ago in SEEN_BEFORE
     ]
+
+
+def test_fire_weather() -> list[dict]:
+    """The settings above as a daily noon series for the Fire Weather Index, oldest day first."""
+    today = datetime.now().date()
+    wind = float(WIND_SPEED_KMH)
+    days = []
+    for back in range(DRY_DAYS_BEFORE, 0, -1):
+        date = today - timedelta(days=back)
+        days.append({"date": f"{date}", "month": date.month, "temp": float(TEMPERATURE_C), "rh": float(HUMIDITY),
+                     "wind": wind, "rain": 0.0, "tmax": float(TEMPERATURE_C) + 2, "forecast": False,
+                     "code": SKY_CODES[SKY.strip().lower()]})
+    for ahead, (temp_change, rh_change, rain) in enumerate(FORECAST):
+        date = today + timedelta(days=ahead)
+        temp = float(TEMPERATURE_C + temp_change)
+        rh = float(min(max(HUMIDITY + rh_change, 1), 100))
+        days.append({"date": f"{date}", "month": date.month, "temp": temp, "rh": rh,
+                     "wind": wind, "rain": float(rain), "tmax": temp + 2, "forecast": True,
+                     "code": SKY_CODES["rain"] if rain else SKY_CODES[SKY.strip().lower()]})
+    return days

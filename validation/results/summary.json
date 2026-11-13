@@ -1,0 +1,22 @@
+{
+  "source": "VIIRS_NOAA21_NRT",
+  "study_period": [
+    "2026-10-14",
+    "2026-11-12"
+  ],
+  "history_from": "2026-09-30",
+  "detections_in_box": 205,
+  "detections_in_georgia_study_month": 17,
+  "kept_as_fires": 9,
+  "reclassified_as_industrial": 8,
+  "near_a_site_but_kept_as_fire_seen_once": 0,
+  "industrial_by_site": {
+    "Hunnewell Cement, Rustavi": 2,
+    "Kaspi Cement Plant": 2,
+    "Zestaponi Ferroalloy Factory": 4
+  },
+  "night_detections_percent": {
+    "industrial": 100,
+    "fires": 22
+  }
+}

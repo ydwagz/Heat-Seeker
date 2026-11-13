@@ -1,0 +1,5 @@
+# Tools for developing Heat-Seeker (not needed to run the app):
+#   pytest      runs the unit tests:            python -m pytest tests
+#   matplotlib  draws the validation chart:     python validation\validate_industrial_filter.py
+pytest==9.2.0
+matplotlib==3.11.2

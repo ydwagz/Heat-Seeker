@@ -1,0 +1,18 @@
+latitude,longitude,acq_date,acq_time,frp,daynight,confidence,class,site,days_seen
+41.31312,46.45118,2026-10-15,1019,4.39,D,n,fire,,0
+41.51341,45.04718,2026-10-17,2339,0.45,N,n,industrial,"Hunnewell Cement, Rustavi",7
+41.51469,45.04745,2026-10-17,2339,0.49,N,n,industrial,"Hunnewell Cement, Rustavi",7
+41.28412,46.71446,2026-10-19,905,6.76,D,n,fire,,0
+41.37185,46.41269,2026-10-19,905,4.53,D,n,fire,,0
+41.37283,46.41645,2026-10-19,905,4.53,D,n,fire,,0
+41.49503,45.65728,2026-10-19,1043,8.95,D,n,fire,,0
+41.91632,44.4145,2026-10-22,2346,1.19,N,n,industrial,Kaspi Cement Plant,2
+41.91876,44.41645,2026-10-22,2346,0.76,N,n,industrial,Kaspi Cement Plant,2
+42.21293,42.8046,2026-10-25,2250,0.53,N,n,fire,,0
+42.12418,43.0142,2026-10-26,2229,3.58,N,n,industrial,Zestaponi Ferroalloy Factory,2
+42.12536,43.01114,2026-10-27,2352,1.61,N,n,industrial,Zestaponi Ferroalloy Factory,3
+42.12416,43.01207,2026-10-29,2314,2.48,N,n,industrial,Zestaponi Ferroalloy Factory,3
+42.21073,42.80397,2026-10-29,2314,0.79,N,n,fire,,0
+41.54147,46.29485,2026-11-03,921,8.2,D,n,fire,,0
+42.1242,43.01351,2026-11-10,2250,0.75,N,n,industrial,Zestaponi Ferroalloy Factory,3
+42.15375,42.07586,2026-11-11,1015,3.09,D,n,fire,,0

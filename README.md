@@ -128,11 +128,6 @@ python -m pytest tests
 
 ---
 
-## New Design - V-5
-
-<img width="1133" height="754" alt="image" src="https://github.com/user-attachments/assets/5b809ca5-8687-4811-a8e6-74e92f2f4d3a" />
-
----
 
 ## How to Set It Up
 
